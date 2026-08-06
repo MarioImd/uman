@@ -1,0 +1,23 @@
+@use '@angular/material' as mat;
+
+// Theme driven by Angular Material's M3 blue palette (current Material major
+// version expects M3 palettes, not a hand-rolled M2 map). The custom
+// properties below are the actual colors sampled from the UMAM paper form
+// (celeste/blue section headers and table fills) and are what the rest of
+// the app's raw CSS (print view, section headers) reads from — keep them in
+// sync with $blue-palette's 500-ish tone if the Material theme ever changes.
+$umam-theme: mat.define-theme((
+  color: (
+    theme-type: light,
+    primary: mat.$blue-palette,
+    tertiary: mat.$cyan-palette,
+  ),
+  density: (scale: 0),
+));
+
+:root {
+  @include mat.all-component-themes($umam-theme);
+  --umam-header-bg: #1892d3;
+  --umam-header-fg: #ffffff;
+  --umam-section-border: #b9def2;
+}
