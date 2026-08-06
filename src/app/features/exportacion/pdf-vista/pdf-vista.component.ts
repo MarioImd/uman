@@ -776,7 +776,7 @@ $tinta: #1a1a1a;
 .hoja {
   width: 8in;
   margin: 0 auto;
-  font: 7px/1.35 Arial, Helvetica, sans-serif;
+  font: 6.2px/1.22 Arial, Helvetica, sans-serif;
   color: $tinta;
   background: #fff;
 }
@@ -827,7 +827,7 @@ $tinta: #1a1a1a;
   gap: 6px;
   align-items: start;
 }
-.columna { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.columna { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 
 .seccion {
   display: flex;
@@ -850,10 +850,10 @@ $tinta: #1a1a1a;
   -webkit-print-color-adjust: exact;
   flex: 0 0 auto;
 }
-.cuerpo-seccion { flex: 1; min-width: 0; padding: 3px 4px; }
+.cuerpo-seccion { flex: 1; min-width: 0; padding: 2px 3px; }
 
 // ---------- Primitivas ----------
-.titulo-campo { font-weight: 700; font-size: 6.5px; }
+.titulo-campo { font-weight: 700; font-size: 6px; }
 .subtitulo {
   font-weight: 700;
   font-size: 6.5px;
@@ -882,8 +882,8 @@ $tinta: #1a1a1a;
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 3px;
-  margin-bottom: 2.5px;
+  gap: 2px;
+  margin-bottom: 1.5px;
 }
 .casilla {
   display: inline-block;
@@ -909,8 +909,8 @@ $tinta: #1a1a1a;
   display: inline-flex;
   align-items: center;
   gap: 1px;
-  margin: 0.5px 4px 0.5px 0;
-  font-size: 6.5px;
+  margin: 0 4px 0 0;
+  font-size: 6px;
 }
 .grupo-opciones {
   display: flex;
@@ -938,7 +938,7 @@ $tinta: #1a1a1a;
 }
 .bloque {
   border: 1px solid $borde;
-  padding: 2px 3px;
+  padding: 1px 2px;
   .opcion { display: flex; }
 }
 
@@ -958,8 +958,8 @@ $tinta: #1a1a1a;
   }
   th, td {
     border: 1px solid $azul;
-    font-size: 6px;
-    padding: 1.5px 2px;
+    font-size: 5.8px;
+    padding: 1px;
     text-align: center;
   }
   th {
@@ -968,7 +968,7 @@ $tinta: #1a1a1a;
     print-color-adjust: exact;
     -webkit-print-color-adjust: exact;
   }
-  td { height: 10px; }
+  td { height: 8px; }
 }
 
 // ---------- IX: exploración física, siluetas y pupilas ----------
@@ -986,8 +986,8 @@ $tinta: #1a1a1a;
   margin: 2px 0;
 }
 .silueta {
-  width: 42px;
-  height: 92px;
+  width: 34px;
+  height: 72px;
   circle, path { fill: none; stroke: #666; stroke-width: 1.5; }
 }
 .zonas-lesion { font-size: 5.5px; .opcion { font-size: 5.5px; } }
@@ -1090,6 +1090,7 @@ $tinta: #1a1a1a;
   }
   .casilla { margin-right: 0; }
 }
+.pagina-1 { zoom: 0.9; }
 .pie {
   margin-top: 8px;
   background: #111;
