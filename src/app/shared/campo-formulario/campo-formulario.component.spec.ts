@@ -31,23 +31,72 @@ describe('CampoFormularioComponent', () => {
     expect(control.value).toBe('Juan Pérez');
   });
 
-  it('renderiza un checkbox por cada opción para tipo "checkbox-grupo" y agrega/quita del arreglo', () => {
+  it('renderiza un chip por cada opción para tipo "checkbox-grupo" y agrega/quita del arreglo', () => {
     const campo: CampoFormulario = { clave: 'lugarOcurrencia', etiqueta: 'Lugar', tipo: 'checkbox-grupo', opciones: ['Hogar', 'Vía pública'] };
     const control = new FormControl<string[]>([]);
     fixture.componentInstance.campo = campo;
     fixture.componentInstance.control = control;
     fixture.detectChanges();
 
-    const checkboxes: HTMLInputElement[] = Array.from(fixture.nativeElement.querySelectorAll('input[type="checkbox"]'));
-    expect(checkboxes.length).toBe(2);
+    const chips: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('button.chip'));
+    expect(chips.length).toBe(2);
 
-    checkboxes[0].click();
+    chips[0].click();
     fixture.detectChanges();
     expect(control.value).toEqual(['Hogar']);
+    expect(chips[0].classList).toContain('chip-activo');
 
-    checkboxes[0].click();
+    chips[0].click();
     fixture.detectChanges();
     expect(control.value).toEqual([]);
+    expect(chips[0].classList).not.toContain('chip-activo');
+  });
+
+  it('renderiza chips para tipo "radio-grupo": un toque selecciona y otro deselecciona', () => {
+    const campo: CampoFormulario = { clave: 'viaAerea', etiqueta: 'Vía aérea', tipo: 'radio-grupo', opciones: ['Permeable', 'Comprometida'] };
+    const control = new FormControl('');
+    fixture.componentInstance.campo = campo;
+    fixture.componentInstance.control = control;
+    fixture.detectChanges();
+
+    const chips: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('button.chip'));
+    expect(chips.length).toBe(2);
+
+    chips[1].click();
+    fixture.detectChanges();
+    expect(control.value).toBe('Comprometida');
+    expect(chips[1].classList).toContain('chip-activo');
+    expect(chips[0].classList).not.toContain('chip-activo');
+
+    // seleccionar la otra opción reemplaza el valor
+    chips[0].click();
+    fixture.detectChanges();
+    expect(control.value).toBe('Permeable');
+
+    // tocar el chip activo lo deselecciona (regresa a '')
+    chips[0].click();
+    fixture.detectChanges();
+    expect(control.value).toBe('');
+  });
+
+  it('renderiza el checkbox simple como chip individual', () => {
+    const campo: CampoFormulario = { clave: 'eyectado', etiqueta: 'Eyectado', tipo: 'checkbox' };
+    const control = new FormControl(false);
+    fixture.componentInstance.campo = campo;
+    fixture.componentInstance.control = control;
+    fixture.detectChanges();
+
+    const chip: HTMLButtonElement = fixture.nativeElement.querySelector('button.chip');
+    expect(chip).toBeTruthy();
+    expect(chip.textContent).toContain('Eyectado');
+
+    chip.click();
+    fixture.detectChanges();
+    expect(control.value).toBe(true);
+
+    chip.click();
+    fixture.detectChanges();
+    expect(control.value).toBe(false);
   });
 
   it('renderiza un <select> para tipo "select" con las opciones dadas', async () => {
