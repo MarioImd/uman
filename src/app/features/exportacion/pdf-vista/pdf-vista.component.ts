@@ -586,6 +586,181 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
       </div>
     </div>
   </div>
+
+  <div class="salto"></div>
+
+  <!-- ============================ PÁGINA 2 (REVERSO) ============================ -->
+  <div class="pagina pagina-2">
+    <div class="columnas">
+      <!-- ============ COLUMNA IZQUIERDA ============ -->
+      <div class="columna">
+
+        <!-- XII. TRASLADO -->
+        <div class="seccion">
+          <div class="tab-seccion">XII TRASLADO</div>
+          <div class="cuerpo-seccion">
+            <div class="fila-lineas">
+              <span class="titulo-campo">INSTITUCIÓN A LA QUE SE TRASLADA EL PACIENTE:</span>
+              <span class="linea">{{ v('traslado', 'institucionTraslado') }}</span>
+            </div>
+            <div class="rejilla-bloques dos">
+              <div class="bloque">
+                <div class="titulo-campo">CONDICIÓN DEL PACIENTE</div>
+                <div class="opcion" *ngFor="let o of ops('traslado', 'condicionPacienteTraslado')">
+                  <span class="casilla" [class.marcada]="marcado('traslado', 'condicionPacienteTraslado', o)"></span>{{ o | uppercase }}
+                </div>
+                <div class="opcion" *ngFor="let o of ops('traslado', 'estabilidadPacienteTraslado')">
+                  <span class="casilla" [class.marcada]="marcado('traslado', 'estabilidadPacienteTraslado', o)"></span>{{ o | uppercase }}
+                </div>
+              </div>
+              <div class="bloque">
+                <div class="titulo-campo">PRIORIDAD DE TRASLADO</div>
+                <div class="opcion" *ngFor="let o of ops('traslado', 'prioridadTraslado')">
+                  <span class="casilla" [class.marcada]="marcado('traslado', 'prioridadTraslado', o)"></span>{{ o | uppercase }}
+                </div>
+              </div>
+            </div>
+            <div class="bloque negativa">
+              <div class="titulo-negativa">
+                <span class="casilla" [class.marcada]="marcado('traslado', 'negativaAtencion')"></span>
+                NEGATIVA A RECIBIR ATENCIÓN / SER TRASLADADO<br />EXIMENTE DE RESPONSABILIDAD
+              </div>
+              <p class="texto-legal">
+                Mediante la presente declaré que me niego a aceptar el (tratamiento) / (traslado) a un hospital y
+                reconozco que el personal de la ambulancia UMAM, así como el médico de los mismos me
+                recomendaron lo anterior, por lo que eximo a UMAM y a dicho personal de toda
+                responsabilidad que pudiera derivar al haber respetado y cumplir mis deseos.
+              </p>
+              <div class="firmas">
+                <div class="firma">
+                  <span class="linea">{{ v('traslado', 'nombrePaciente') }}</span>
+                  <span class="pie-firma">Nombre y firma del paciente</span>
+                </div>
+                <div class="firma">
+                  <span class="linea">{{ v('traslado', 'nombreTestigo') }}</span>
+                  <span class="pie-firma">Nombre y firma del testigo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- XIII. OBSERVACIONES -->
+        <div class="seccion">
+          <div class="tab-seccion">XIII OBSERVACIONES</div>
+          <div class="cuerpo-seccion">
+            <div class="renglones-observaciones">
+              <div class="renglon-observacion">{{ v('observaciones', 'observaciones') }}</div>
+              <div class="renglon-observacion"></div>
+              <div class="renglon-observacion"></div>
+              <div class="renglon-observacion"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- XIV. SELLO DE MINISTERIO PÚBLICO -->
+        <div class="seccion">
+          <div class="tab-seccion">XIV SELLO DE MINISTERIO PÚBLICO</div>
+          <div class="cuerpo-seccion">
+            <div class="grupo-opciones">
+              <span class="opcion">
+                <span class="casilla" [class.marcada]="marcado('observaciones', 'ministerioPublicoNotificado')"></span>MINISTERIO PÚBLICO NOTIFICADO
+              </span>
+              <span class="linea">{{ v('observaciones', 'selloMinisterioPublico') }}</span>
+            </div>
+            <div class="caja-sello"></div>
+            <div class="firma centrada">
+              <span class="linea">{{ v('observaciones', 'nombreQuienRecibeMP') }}</span>
+              <span class="pie-firma">NOMBRE Y FIRMA DE QUIEN RECIBE</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============ COLUMNA DERECHA ============ -->
+      <div class="columna">
+
+        <!-- XV. DATOS LEGALES -->
+        <div class="seccion">
+          <div class="tab-seccion">XV DATOS LEGALES</div>
+          <div class="cuerpo-seccion">
+            <div class="titulo-campo">AUTORIDAD O AUTORIDADES QUE TOMARON CONOCIMIENTO</div>
+            <div class="fila-lineas"><span class="titulo-campo">DEPENDENCIA:</span><span class="linea">{{ v('datosLegales', 'dependenciaAutoridad') }}</span></div>
+            <div class="fila-lineas"><span class="titulo-campo">NÚMERO DE UNIDADES:</span><span class="linea">{{ v('datosLegales', 'numeroUnidades') }}</span></div>
+            <div class="fila-lineas"><span class="titulo-campo">NOMBRE O NÚMERO DE LOS OFICIALES:</span><span class="linea">{{ v('datosLegales', 'nombreNumeroOficiales') }}</span></div>
+
+            <table class="tabla-mini vehiculos">
+              <caption>VEHÍCULOS INVOLUCRADOS</caption>
+              <thead>
+                <tr><th class="col-num"></th><th>TIPO Y MARCA</th><th>PLACAS</th></tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let fila of filasVehiculos; let i = index">
+                  <td class="col-num">{{ i + 1 }}</td>
+                  <td>{{ fila['tipoMarca'] }}</td>
+                  <td>{{ fila['placas'] }}</td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="fila-lineas">
+              <span class="titulo-campo">POSICIÓN, ORIENTACIÓN (DONDE Y COMO) SE ENCONTRÓ EL PACIENTE:</span>
+              <span class="linea">{{ v('datosLegales', 'posicionOrientacionPaciente') }}</span>
+            </div>
+            <div class="fila-lineas"><span class="titulo-campo">PERTENENCIAS:</span><span class="linea">{{ v('datosLegales', 'pertenencias') }}</span></div>
+            <div class="fila-lineas">
+              <span class="titulo-campo">RECIBIÓ LAS PERTENENCIAS:</span>
+              <span class="linea">{{ v('datosLegales', 'recibioPertenenciasNombreFirmaCargo') }}</span>
+              <span class="pie-firma">NOMBRE, FIRMA Y CARGO</span>
+            </div>
+            <div class="fila-lineas"><span class="titulo-campo">COMPAÑÍA DE SEGURO DE AUTOMÓVIL:</span><span class="linea">{{ v('datosLegales', 'companiaSeguroAutomovil') }}</span></div>
+          </div>
+        </div>
+
+        <!-- XVI. HOSPITAL RECEPTOR -->
+        <div class="seccion">
+          <div class="tab-seccion">XVI HOSPITAL RECEPTOR</div>
+          <div class="cuerpo-seccion">
+            <div class="titulo-campo centrado">ACEPTACIÓN DE HOSPITAL RECEPTOR</div>
+            <div class="caja-sello">{{ v('hospitalReceptor', 'aceptacionHospitalReceptor') }}</div>
+            <div class="firmas">
+              <div class="firma">
+                <span class="linea">{{ v('hospitalReceptor', 'nombreQuienEntrega') }}</span>
+                <span class="pie-firma">NOMBRE Y FIRMA DE QUIEN ENTREGA EL PACIENTE</span>
+              </div>
+              <div class="firma">
+                <span class="linea">{{ v('hospitalReceptor', 'nombreQuienRecibe') }}</span>
+                <span class="pie-firma">NOMBRE Y FIRMA DE PERSONA QUE RECIBE EL PACIENTE</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MATERIAL UTILIZADO -->
+    <h2 class="titulo-material">MATERIAL UTILIZADO</h2>
+    <div class="material-grid">
+      <div class="material-categoria" *ngFor="let categoria of categorias">
+        <div class="material-cabecera">{{ categoria.nombre | uppercase }}</div>
+        <div class="material-item" *ngFor="let item of categoria.items">
+          <span class="material-etiqueta">
+            {{ item.nombre }}<ng-container *ngIf="item.tieneMedida"> — {{ item.unidadMedida ? (item.unidadMedida | uppercase) : 'MEDIDA' }} ____</ng-container>
+          </span>
+          <span class="material-cantidad">{{ materialCantidad(item.clave) }}</span>
+          <span class="casilla" [class.marcada]="materialMarcado(item.clave)"></span>
+        </div>
+      </div>
+    </div>
+
+    <footer class="pie">
+      <div class="pie-linea"><strong>TELS. (656)625-9472</strong></div>
+      <div class="pie-linea"><strong>(656)625-9473</strong></div>
+      <div class="pie-linea">Calle Quinta Amalia # 107 • Fracc. Las Quintas</div>
+      <div class="pie-linea">Cd. Juárez, Chih. • C. P. 32401</div>
+      <div class="pie-linea">E-mail: <strong>ambulanciasumam&#64;yahoo.com</strong></div>
+    </footer>
+  </div>
 </div>
 `,
   styles: [`
@@ -833,6 +1008,100 @@ $tinta: #1a1a1a;
   }
 }
 
+// ---------- Página 2 ----------
+.rejilla-bloques.dos { grid-template-columns: repeat(2, 1fr); }
+.centrado { text-align: center; }
+.negativa {
+  margin-top: 3px;
+  .titulo-negativa { font-weight: 700; font-size: 6.5px; text-align: center; margin: 2px 0; }
+}
+.texto-legal {
+  font-size: 6px;
+  text-align: justify;
+  margin: 3px 4px;
+  line-height: 1.45;
+}
+.firmas { display: flex; gap: 10px; margin-top: 12px; }
+.firma {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  .linea { width: 100%; min-height: 10px; text-align: center; }
+  .pie-firma { font-size: 5.5px; margin-top: 1px; }
+  &.centrada { margin-top: 8px; }
+}
+.pie-firma { font-size: 5.5px; }
+.renglones-observaciones { display: flex; flex-direction: column; gap: 4px; padding: 2px 0; }
+.renglon-observacion {
+  min-height: 11px;
+  background: $celeste;
+  border-bottom: 1px solid $borde;
+  padding: 1px 3px;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.caja-sello {
+  min-height: 60px;
+  border: 1px solid $borde;
+  margin: 4px 0;
+  padding: 2px 3px;
+}
+.vehiculos {
+  .col-num { width: 10px; font-weight: 700; }
+  td { text-align: left; }
+}
+.titulo-material {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  margin: 8px 0 4px;
+}
+.material-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  align-items: start;
+}
+.material-categoria { border: 1px solid $azul; break-inside: avoid; }
+.material-cabecera {
+  background: $celeste;
+  color: $azul-oscuro;
+  font-weight: 700;
+  font-size: 6px;
+  text-align: center;
+  padding: 1.5px 2px;
+  border-bottom: 1px solid $azul;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+}
+.material-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0.5px 3px;
+  font-size: 5.8px;
+  .material-etiqueta { flex: 1; }
+  .material-cantidad {
+    min-width: 14px;
+    border-bottom: 1px solid $borde;
+    text-align: center;
+  }
+  .casilla { margin-right: 0; }
+}
+.pie {
+  margin-top: 8px;
+  background: #111;
+  color: #fff;
+  text-align: right;
+  padding: 6px 10px;
+  font-size: 8px;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
+  .pie-linea { line-height: 1.4; }
+}
+
 // ---------- Impresión ----------
 @media print {
   @page { size: letter; margin: 0.25in; }
@@ -902,6 +1171,15 @@ export class PdfVistaComponent implements OnChanges {
   ops(seccionClave: string, campoClave: string): string[] {
     const seccion = SECCIONES.find(s => s.clave === seccionClave);
     return seccion?.campos.find(c => c.clave === campoClave)?.opciones ?? [];
+  }
+
+  materialMarcado(clave: string): boolean {
+    return this.registro?.['materialUtilizado']?.[clave]?.marcado === true;
+  }
+
+  materialCantidad(clave: string): string {
+    const cantidad = this.registro?.['materialUtilizado']?.[clave]?.cantidad;
+    return cantidad ? String(cantidad) : '';
   }
 
   private rellenar(clave: string, minimo: number): Record<string, string>[] {

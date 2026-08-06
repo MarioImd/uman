@@ -85,6 +85,59 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
   it('renderiza sin errores cuando registro es undefined (hoja en blanco imprimible)', () => {
     const el = render(undefined);
     expect(el.querySelector('.pagina-1')).toBeTruthy();
+    expect(el.querySelector('.pagina-2')).toBeTruthy();
     expect(el.querySelectorAll('.casilla.marcada').length).toBe(0);
+  });
+
+  describe('página 2 (reverso)', () => {
+    it('renderiza el texto legal de la negativa y las firmas del paciente y testigo', () => {
+      const el = render({ traslado: { nombrePaciente: 'Juan Pérez', nombreTestigo: 'Ana López' } });
+      expect(el.textContent).toContain('NEGATIVA A RECIBIR ATENCIÓN / SER TRASLADADO');
+      expect(el.textContent).toContain('me niego a aceptar el (tratamiento) / (traslado)');
+      expect(el.textContent).toContain('Nombre y firma del paciente');
+      expect(el.textContent).toContain('Nombre y firma del testigo');
+      expect(el.textContent).toContain('Juan Pérez');
+      expect(el.textContent).toContain('Ana López');
+    });
+
+    it('la tabla de vehículos involucrados siempre tiene 4 filas', () => {
+      const el = render({ vehiculosInvolucrados: [{ tipoMarca: 'Nissan Tsuru', placas: 'ABC-123' }] });
+      const filas = el.querySelectorAll('.vehiculos tbody tr');
+      expect(filas.length).toBe(4);
+      expect(filas[0].textContent).toContain('Nissan Tsuru');
+      expect(filas[0].textContent).toContain('ABC-123');
+      expect(el.querySelector('.vehiculos')!.textContent).toContain('TIPO Y MARCA');
+      expect(el.querySelector('.vehiculos')!.textContent).toContain('PLACAS');
+    });
+
+    it('renderiza todos los ítems del catálogo de material y marca los usados con su cantidad', () => {
+      const el = render({ materialUtilizado: { guantes: { marcado: true, cantidad: '4' } } });
+      const items = el.querySelectorAll('.material-item');
+      const totalItems = 6 * 14; // 6 categorías × 14 ítems
+      expect(items.length).toBe(totalItems);
+
+      const guantes = Array.from(items).find(i => i.textContent!.includes('Guantes'))!;
+      expect(guantes.querySelector('.casilla')!.classList).toContain('marcada');
+      expect(guantes.textContent).toContain('4');
+    });
+
+    it('renderiza el pie con la dirección y los teléfonos', () => {
+      const el = render({});
+      const pie = el.querySelector('.pie')!;
+      expect(pie.textContent).toContain('Calle Quinta Amalia # 107');
+      expect(pie.textContent).toContain('Fracc. Las Quintas');
+      expect(pie.textContent).toContain('C. P. 32401');
+      expect(pie.textContent).toContain('(656)625-9472');
+    });
+
+    it('renderiza las secciones XII a XVI y el hospital receptor', () => {
+      const el = render({ hospitalReceptor: { nombreQuienEntrega: 'TUM Pedro' } });
+      const pestanas = Array.from(el.querySelectorAll('.pagina-2 .tab-seccion')).map(p => p.textContent!.trim());
+      for (const esperada of ['XII TRASLADO', 'XIII OBSERVACIONES', 'XV DATOS LEGALES', 'XVI HOSPITAL RECEPTOR']) {
+        expect(pestanas).toContain(esperada);
+      }
+      expect(el.textContent).toContain('ACEPTACIÓN DE HOSPITAL RECEPTOR');
+      expect(el.textContent).toContain('TUM Pedro');
+    });
   });
 });
