@@ -22,13 +22,46 @@ describe('FormularioComponent', () => {
     fixture.detectChanges();
   });
 
-  it('renderiza una app-seccion-acordeon por cada una de las 15 secciones', () => {
-    const secciones = fixture.nativeElement.querySelectorAll('app-seccion-acordeon');
-    expect(secciones.length).toBe(SECCIONES.length);
+  it('inicia en el paso 0 mostrando solo la primera sección', () => {
+    expect(fixture.componentInstance.pasoActual).toBe(0);
+    const pasos = fixture.nativeElement.querySelectorAll('app-seccion-paso');
+    expect(pasos.length).toBe(1);
+    expect(fixture.nativeElement.textContent).toContain(SECCIONES[0].titulo);
   });
 
-  it('renderiza app-material-utilizado', () => {
+  it('avanzar() muestra la siguiente sección y retroceder() regresa', () => {
+    fixture.componentInstance.avanzar();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain(SECCIONES[1].titulo);
+
+    fixture.componentInstance.retroceder();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain(SECCIONES[0].titulo);
+  });
+
+  it('el último paso muestra app-material-utilizado', () => {
+    fixture.componentInstance.irAPaso(fixture.componentInstance.totalPasos - 1);
+    fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('app-material-utilizado')).toBeTruthy();
+    expect(fixture.nativeElement.querySelectorAll('app-seccion-paso').length).toBe(0);
+  });
+
+  it('el select de saltar a sección lista todos los pasos (secciones + material)', () => {
+    const select: HTMLSelectElement = fixture.nativeElement.querySelector('select.salto-seccion');
+    expect(select).toBeTruthy();
+    expect(select.options.length).toBe(SECCIONES.length + 1);
+  });
+
+  it('Anterior se deshabilita en el primer paso y Siguiente en el último', () => {
+    const anterior: HTMLButtonElement = fixture.nativeElement.querySelector('button.paso-anterior');
+    const siguiente: HTMLButtonElement = fixture.nativeElement.querySelector('button.paso-siguiente');
+    expect(anterior.disabled).toBeTrue();
+    expect(siguiente.disabled).toBeFalse();
+
+    fixture.componentInstance.irAPaso(fixture.componentInstance.totalPasos - 1);
+    fixture.detectChanges();
+    expect(anterior.disabled).toBeFalse();
+    expect(siguiente.disabled).toBeTrue();
   });
 
   it('un cambio en el formulario dispara guardar() (autosave) después del debounce', fakeAsync(() => {

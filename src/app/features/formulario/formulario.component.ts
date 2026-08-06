@@ -5,7 +5,7 @@ import { debounceTime } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { SeccionAcordeonComponent } from '../../shared/seccion-acordeon/seccion-acordeon.component';
+import { SeccionPasoComponent } from '../../shared/seccion-paso/seccion-paso.component';
 import { MaterialUtilizadoComponent } from '../material-utilizado/material-utilizado.component';
 import { PdfVistaComponent } from '../exportacion/pdf-vista/pdf-vista.component';
 import { ExcelExportadorService } from '../exportacion/excel-exportador.service';
@@ -19,27 +19,34 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, MatButtonModule, MatIconModule, MatToolbarModule,
-    SeccionAcordeonComponent, MaterialUtilizadoComponent, PdfVistaComponent,
+    SeccionPasoComponent, MaterialUtilizadoComponent, PdfVistaComponent,
   ],
   template: `
     <mat-toolbar class="encabezado">
       <span>UMAM — Registro de Atención Prehospitalaria</span>
     </mat-toolbar>
 
+    <div class="encabezado-paso">
+      <div class="progreso-texto">
+        <span>Paso {{ pasoActual + 1 }} de {{ totalPasos }}</span>
+        <select class="salto-seccion" [value]="pasoActual" (change)="irAPaso(+$any($event.target).value)" aria-label="Ir a sección">
+          <option *ngFor="let titulo of titulosPasos; let i = index" [value]="i">{{ titulo }}</option>
+        </select>
+      </div>
+      <div class="barra-progreso">
+        <div class="barra-progreso-relleno" [style.width.%]="((pasoActual + 1) / totalPasos) * 100"></div>
+      </div>
+    </div>
+
     <div class="layout" [formGroup]="form">
-      <nav class="nav-lateral">
-        <a *ngFor="let seccion of secciones" [href]="'#seccion-' + seccion.clave">{{ seccion.titulo }}</a>
-        <a href="#seccion-materialUtilizado">Material Utilizado</a>
-      </nav>
-
       <main class="contenido">
-        <app-seccion-acordeon
-          *ngFor="let seccion of secciones"
-          [seccion]="seccion"
-          [grupo]="grupoDeSeccion(seccion.clave)"
-        ></app-seccion-acordeon>
+        <app-seccion-paso
+          *ngIf="pasoActual < secciones.length"
+          [seccion]="secciones[pasoActual]"
+          [grupo]="grupoDeSeccion(secciones[pasoActual].clave)"
+        ></app-seccion-paso>
 
-        <div id="seccion-materialUtilizado" class="panel-material">
+        <div *ngIf="pasoActual === secciones.length" class="panel-material">
           <h3>Material Utilizado</h3>
           <app-material-utilizado [grupo]="grupoMaterialUtilizado()"></app-material-utilizado>
         </div>
@@ -47,17 +54,24 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
     </div>
 
     <div class="barra-acciones">
-      <button type="button" class="guardar-borrador" mat-raised-button color="primary" (click)="guardarBorrador()">
-        <mat-icon>save</mat-icon> Guardar borrador
+      <button type="button" class="paso-anterior" mat-stroked-button [disabled]="pasoActual === 0" (click)="retroceder()">
+        <mat-icon>arrow_back</mat-icon> Anterior
       </button>
-      <button type="button" class="exportar-pdf" mat-stroked-button (click)="exportarPdf()">
-        <mat-icon>picture_as_pdf</mat-icon> Exportar PDF
+      <button type="button" class="paso-siguiente" mat-raised-button color="primary" [disabled]="pasoActual === totalPasos - 1" (click)="avanzar()">
+        Siguiente <mat-icon>arrow_forward</mat-icon>
       </button>
-      <button type="button" class="exportar-excel" mat-stroked-button (click)="exportarExcel()">
-        <mat-icon>grid_on</mat-icon> Exportar Excel
+      <span class="separador"></span>
+      <button type="button" class="guardar-borrador" mat-icon-button (click)="guardarBorrador()" aria-label="Guardar borrador" title="Guardar borrador">
+        <mat-icon>save</mat-icon>
       </button>
-      <button type="button" class="nuevo-registro" mat-stroked-button (click)="nuevoRegistro()">
-        <mat-icon>add</mat-icon> Nuevo registro
+      <button type="button" class="exportar-pdf" mat-icon-button (click)="exportarPdf()" aria-label="Exportar PDF" title="Exportar PDF">
+        <mat-icon>picture_as_pdf</mat-icon>
+      </button>
+      <button type="button" class="exportar-excel" mat-icon-button (click)="exportarExcel()" aria-label="Exportar Excel" title="Exportar Excel">
+        <mat-icon>grid_on</mat-icon>
+      </button>
+      <button type="button" class="nuevo-registro" mat-icon-button (click)="nuevoRegistro()" aria-label="Nuevo registro" title="Nuevo registro">
+        <mat-icon>add</mat-icon>
       </button>
       <span class="estado-guardado" [class.error]="estadoGuardado === 'Error al guardar'">{{ estadoGuardado }}</span>
     </div>
@@ -68,20 +82,24 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
   `,
   styles: [`
     .encabezado { background: var(--umam-header-bg, #1892d3); color: var(--umam-header-fg, #fff); }
-    .layout { display: flex; gap: 16px; padding: 16px; }
-    .nav-lateral { position: sticky; top: 16px; align-self: flex-start; display: flex; flex-direction: column; gap: 4px; min-width: 220px; max-height: 90vh; overflow-y: auto; }
-    .nav-lateral a { color: var(--umam-header-bg, #1892d3); text-decoration: none; font-size: 0.9rem; }
-    .contenido { flex: 1; min-width: 0; }
-    .barra-acciones { position: sticky; bottom: 0; display: flex; align-items: center; gap: 8px; padding: 12px 16px; background: white; border-top: 1px solid var(--umam-section-border, #b9def2); }
-    .estado-guardado { margin-left: auto; font-size: 0.85rem; color: #555; }
+    .encabezado-paso { position: sticky; top: 0; z-index: 5; background: #fff; padding: 10px 16px 0; border-bottom: 1px solid var(--umam-section-border, #b9def2); }
+    .progreso-texto { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+    .progreso-texto > span { font-weight: 600; color: var(--umam-header-bg, #1892d3); white-space: nowrap; }
+    .salto-seccion { flex: 1; min-width: 0; max-width: 340px; min-height: 40px; padding: 4px 8px; border: 1px solid var(--umam-section-border, #b9def2); border-radius: 8px; font-size: 0.9rem; color: #333; background: #fff; }
+    .barra-progreso { height: 4px; background: var(--umam-section-bg, #dbeef9); border-radius: 2px 2px 0 0; overflow: hidden; }
+    .barra-progreso-relleno { height: 100%; background: var(--umam-header-bg, #1892d3); transition: width 0.2s; }
+    .layout { padding: 16px; padding-bottom: 88px; }
+    .contenido { max-width: 900px; margin: 0 auto; }
+    .panel-material { background: #fff; border: 1px solid var(--umam-section-border, #b9def2); border-radius: 12px; padding: 16px; }
+    .panel-material h3 { margin: 0 0 16px; color: var(--umam-header-bg, #1892d3); }
+    .barra-acciones { position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: white; border-top: 1px solid var(--umam-section-border, #b9def2); }
+    .paso-siguiente { min-width: 130px; }
+    .separador { flex: 1; }
+    .estado-guardado { font-size: 0.8rem; color: #555; }
     .estado-guardado.error { color: #c0392b; font-weight: 600; }
-    @media (max-width: 720px) {
-      .layout { flex-direction: column; }
-      .nav-lateral { position: static; flex-direction: row; flex-wrap: wrap; max-height: none; }
-    }
     .solo-impresion { display: none; }
     @media print {
-      .encabezado, .nav-lateral, .barra-acciones, .contenido { display: none !important; }
+      .encabezado, .encabezado-paso, .barra-acciones, .layout { display: none !important; }
       .solo-impresion { display: block !important; }
     }
   `],
@@ -90,6 +108,10 @@ export class FormularioComponent implements OnInit {
   secciones = SECCIONES;
   form: FormGroup;
   estadoGuardado = '';
+  pasoActual = 0;
+  /** Secciones del catálogo + el paso final de Material Utilizado. */
+  totalPasos = SECCIONES.length + 1;
+  titulosPasos = [...SECCIONES.map(s => s.titulo), 'Material Utilizado'];
   /**
    * Foto del formulario tomada justo antes de imprimir. La vista de impresión
    * solo importa en el instante de exportar/imprimir, así que evitamos leer
@@ -145,7 +167,22 @@ export class FormularioComponent implements OnInit {
     this.registroActual = crearRegistroVacio();
     this.form = construirFormularioRegistro(this.fb, this.registroActual);
     this.estadoGuardado = '';
+    this.pasoActual = 0;
     this.suscribirAutosave();
+  }
+
+  avanzar(): void {
+    this.irAPaso(this.pasoActual + 1);
+  }
+
+  retroceder(): void {
+    this.irAPaso(this.pasoActual - 1);
+  }
+
+  irAPaso(paso: number): void {
+    if (paso < 0 || paso > this.totalPasos - 1) return;
+    this.pasoActual = paso;
+    window.scrollTo(0, 0);
   }
 
   private suscribirAutosave(): void {
