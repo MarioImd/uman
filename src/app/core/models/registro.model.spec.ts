@@ -7,7 +7,7 @@ describe('crearRegistroVacio', () => {
     expect(registro.id).toBeTruthy();
     expect(registro.fechaCreacion).toBeTruthy();
     expect(registro.folio).toBe('');
-    expect(registro.materialUtilizado).toEqual({});
+    expect(registro.consentimientoInformado).toEqual({});
     expect(registro.signosVitales).toEqual([]);
     expect(registro.manejoFarmacologico).toEqual([]);
     expect(registro.vehiculosInvolucrados).toEqual([]);

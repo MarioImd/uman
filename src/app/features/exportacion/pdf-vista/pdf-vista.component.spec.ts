@@ -41,12 +41,13 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
     }
   });
 
-  it('renderiza la tabla de cronometría con las 6 horas', () => {
-    const el = render({ datosServicio: { horaLlamada: '10:15' } });
+  it('renderiza la tabla de cronometría con las 5 horas (sin hora de llamada)', () => {
+    const el = render({ datosServicio: { horaSalida: '10:15' } });
     const cronometria = el.querySelector('.cronometria')!;
-    for (const columna of ['LLAMADA', 'SALIDA', 'LLEGADA', 'TRASLADO', 'HOSPITAL', 'LIBERACIÓN']) {
+    for (const columna of ['SALIDA', 'LLEGADA', 'TRASLADO', 'HOSPITAL', 'LIBERACIÓN']) {
       expect(cronometria.textContent).toContain(columna);
     }
+    expect(cronometria.textContent).not.toContain('LLAMADA');
     expect(cronometria.textContent).toContain('10:15');
   });
 
@@ -74,8 +75,8 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
     expect(filas.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('la tabla de signos vitales muestra los valores capturados', () => {
-    const el = render({ signosVitales: [{ hora: '10:30', fr: '18', fc: '80', tas: '120', tad: '80', spo2: '97', temp: '36.5', gluc: '90', ekg: 'Sinusal', examenNeurologico: 'A' }] });
+  it('la tabla de signos vitales muestra los valores capturados (EtCO2 y hallazgos EKG)', () => {
+    const el = render({ signosVitales: [{ hora: '10:30', fr: '18', fc: '80', tas: '120', tad: '80', spo2: '97', temp: '36.5', gluc: '90', etco2: '35', hallazgosEkg: 'Sinusal' }] });
     const primeraFila = el.querySelector('.signos-vitales tbody tr')!;
     expect(primeraFila.textContent).toContain('10:30');
     expect(primeraFila.textContent).toContain('120');
@@ -86,6 +87,7 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
     const el = render(undefined);
     expect(el.querySelector('.pagina-1')).toBeTruthy();
     expect(el.querySelector('.pagina-2')).toBeTruthy();
+    expect(el.querySelector('.pagina-3')).toBeTruthy();
     expect(el.querySelectorAll('.casilla.marcada').length).toBe(0);
   });
 
@@ -110,15 +112,11 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
       expect(el.querySelector('.vehiculos')!.textContent).toContain('PLACAS');
     });
 
-    it('renderiza todos los ítems del catálogo de material y marca los usados con su cantidad', () => {
-      const el = render({ materialUtilizado: { guantes: { marcado: true, cantidad: '4' } } });
-      const items = el.querySelectorAll('.material-item');
-      const totalItems = 6 * 14; // 6 categorías × 14 ítems
-      expect(items.length).toBe(totalItems);
-
-      const guantes = Array.from(items).find(i => i.textContent!.includes('Guantes'))!;
-      expect(guantes.querySelector('.casilla')!.classList).toContain('marcada');
-      expect(guantes.textContent).toContain('4');
+    it('renderiza las imágenes adjuntas de EKG/Rx/laboratorios en hospital receptor', () => {
+      const el = render({ hospitalReceptor: { imagenesEkgRxLaboratorios: ['data:image/png;base64,AAA', 'data:image/png;base64,BBB'] } });
+      const imagenes = el.querySelectorAll('.imagenes-adjuntas img');
+      expect(imagenes.length).toBe(2);
+      expect((imagenes[0] as HTMLImageElement).src).toContain('data:image/png;base64,AAA');
     });
 
     it('renderiza el pie con la dirección y los teléfonos', () => {
@@ -138,6 +136,27 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
       }
       expect(el.textContent).toContain('ACEPTACIÓN DE HOSPITAL RECEPTOR');
       expect(el.textContent).toContain('TUM Pedro');
+    });
+  });
+
+  describe('página 3 (consentimiento informado)', () => {
+    it('renderiza el texto de consentimiento y las tres firmas', () => {
+      const el = render({
+        consentimientoInformado: {
+          nombrePacienteConsentimiento: 'Juan Pérez',
+          nombreResponsableConsentimiento: 'María Pérez',
+          nombreParamedicoConsentimiento: 'TUM Pedro',
+        },
+      });
+      const pagina3 = el.querySelector('.pagina-3')!;
+      expect(pagina3.textContent).toContain('CONSENTIMIENTO INFORMADO');
+      expect(pagina3.textContent).toContain('otorgo mi consentimiento');
+      expect(pagina3.textContent).toContain('Juan Pérez');
+      expect(pagina3.textContent).toContain('María Pérez');
+      expect(pagina3.textContent).toContain('TUM Pedro');
+      expect(pagina3.textContent).toContain('NOMBRE Y FIRMA DEL PACIENTE');
+      expect(pagina3.textContent).toContain('NOMBRE Y FIRMA DEL FAMILIAR O RESPONSABLE');
+      expect(pagina3.textContent).toContain('NOMBRE Y FIRMA DEL PARAMÉDICO');
     });
   });
 });

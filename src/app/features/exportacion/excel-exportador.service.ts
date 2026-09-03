@@ -2,7 +2,6 @@ import { Injectable } from '@angular/core';
 import * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { SECCIONES } from '../../core/data/secciones.data';
-import { CATALOGO_MATERIAL } from '../../core/data/material-utilizado.data';
 import { RegistroAtencionPrehospitalaria } from '../../core/models/registro.model';
 
 const RELLENO_ENCABEZADO: ExcelJS.Fill = {
@@ -27,9 +26,14 @@ export class ExcelExportadorService {
       const valoresSeccion = (registro as unknown as Record<string, unknown>)[seccion.clave] as Record<string, unknown> | undefined;
       for (const campo of seccion.campos) {
         const valorCrudo = valoresSeccion?.[campo.clave];
-        const valor = typeof valorCrudo === 'boolean'
-          ? (valorCrudo ? 'Sí' : 'No')
-          : Array.isArray(valorCrudo) ? valorCrudo.join(', ') : (valorCrudo ?? '');
+        // Las imágenes se guardan como data URIs base64: no tiene sentido volcarlas
+        // en una celda, así que solo dejamos constancia de cuántas se adjuntaron
+        // (el contenido se ve en el PDF).
+        const valor = campo.tipo === 'imagenes'
+          ? (Array.isArray(valorCrudo) && valorCrudo.length > 0 ? `${valorCrudo.length} imagen(es) adjunta(s) — ver PDF` : '')
+          : typeof valorCrudo === 'boolean'
+            ? (valorCrudo ? 'Sí' : 'No')
+            : Array.isArray(valorCrudo) ? valorCrudo.join(', ') : (valorCrudo ?? '');
         hoja.addRow({ campo: campo.etiqueta, valor });
       }
 
@@ -43,26 +47,6 @@ export class ExcelExportadorService {
         for (const fila of filas) {
           hoja.addRow(tabla.columnas.map(c => fila[c.clave] ?? ''));
         }
-      }
-    }
-
-    const hojaMaterial = libro.addWorksheet('Material Utilizado');
-    hojaMaterial.columns = [
-      { header: 'Ítem', key: 'item', width: 40 },
-      { header: 'Utilizado', key: 'utilizado', width: 12 },
-      { header: 'Cantidad / Medida', key: 'cantidad', width: 20 },
-    ];
-    this.estilizarFilaEncabezado(hojaMaterial.getRow(1));
-    for (const categoria of CATALOGO_MATERIAL) {
-      const filaCategoria = hojaMaterial.addRow([categoria.nombre]);
-      filaCategoria.font = { bold: true };
-      for (const item of categoria.items) {
-        const dato = registro.materialUtilizado[item.clave];
-        hojaMaterial.addRow({
-          item: item.nombre,
-          utilizado: dato?.marcado ? 'Sí' : 'No',
-          cantidad: dato?.cantidad ?? '',
-        });
       }
     }
 

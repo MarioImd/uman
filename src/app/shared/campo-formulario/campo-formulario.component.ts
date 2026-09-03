@@ -86,6 +86,17 @@ import { CampoFormulario } from '../../core/models/campo-formulario.model';
         </mat-select>
       </mat-form-field>
 
+      <div *ngSwitchCase="'imagenes'" class="grupo-imagenes">
+        <span class="grupo-titulo">{{ campo.etiqueta }}</span>
+        <div class="miniaturas" *ngIf="imagenes().length > 0">
+          <div class="miniatura" *ngFor="let imagen of imagenes(); let i = index">
+            <img [src]="imagen" alt="" />
+            <button type="button" class="quitar-imagen" (click)="quitarImagen(i)" aria-label="Quitar imagen">✕</button>
+          </div>
+        </div>
+        <input type="file" accept="image/*" multiple (change)="agregarImagenes($event)" />
+      </div>
+
     </div>
   `,
   styles: [`
@@ -113,6 +124,15 @@ import { CampoFormulario } from '../../core/models/campo-formulario.model';
       border-color: var(--umam-header-bg, #1892d3);
       color: #fff;
       font-weight: 600;
+    }
+    .grupo-imagenes { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+    .miniaturas { display: flex; flex-wrap: wrap; gap: 8px; }
+    .miniatura { position: relative; width: 72px; height: 72px; }
+    .miniatura img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid var(--umam-section-border, #b9def2); }
+    .quitar-imagen {
+      position: absolute; top: -6px; right: -6px; width: 20px; height: 20px;
+      border-radius: 50%; border: none; background: #c0392b; color: #fff;
+      font-size: 11px; line-height: 1; cursor: pointer;
     }
   `],
 })
@@ -144,5 +164,34 @@ export class CampoFormularioComponent {
 
   alternarBooleano(): void {
     this.control.setValue(this.control.value !== true);
+  }
+
+  imagenes(): string[] {
+    return (this.control.value ?? []) as string[];
+  }
+
+  /**
+   * Convierte cada archivo elegido a un data URI base64 y lo agrega al arreglo
+   * del control. Se guarda como base64 (no como File) porque todo el registro
+   * viaja tal cual a localStorage vía JSON.stringify — un File no sobrevive
+   * esa serialización.
+   */
+  agregarImagenes(evento: Event): void {
+    const input = evento.target as HTMLInputElement;
+    const archivos = Array.from(input.files ?? []);
+    for (const archivo of archivos) {
+      const lector = new FileReader();
+      lector.onload = () => {
+        this.control.setValue([...this.imagenes(), String(lector.result)]);
+      };
+      lector.readAsDataURL(archivo);
+    }
+    input.value = '';
+  }
+
+  quitarImagen(indice: number): void {
+    const valor = [...this.imagenes()];
+    valor.splice(indice, 1);
+    this.control.setValue(valor);
   }
 }

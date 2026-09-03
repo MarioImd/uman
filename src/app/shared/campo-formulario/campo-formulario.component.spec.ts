@@ -119,4 +119,36 @@ describe('CampoFormularioComponent', () => {
     expect(await opciones[0].getText()).toBe('Masculino');
     expect(await opciones[1].getText()).toBe('Femenino');
   });
+
+  it('renderiza un input de archivo para tipo "imagenes", agrega miniaturas al arreglo del control y permite quitarlas', (done) => {
+    const campo: CampoFormulario = { clave: 'imagenesEkgRxLaboratorios', etiqueta: 'Imágenes', tipo: 'imagenes' };
+    const control = new FormControl<string[]>([]);
+    fixture.componentInstance.campo = campo;
+    fixture.componentInstance.control = control;
+    fixture.detectChanges();
+
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input[type="file"]');
+    expect(input).toBeTruthy();
+
+    const archivo = new File(['contenido'], 'ekg.png', { type: 'image/png' });
+    Object.defineProperty(input, 'files', { value: [archivo] });
+    input.dispatchEvent(new Event('change'));
+
+    // FileReader es asíncrono incluso en jsdom/karma; esperamos a que el control se actualice.
+    const esperar = setInterval(() => {
+      if (control.value!.length === 1) {
+        clearInterval(esperar);
+        expect(control.value![0]).toContain('data:image/png;base64');
+        fixture.detectChanges();
+
+        const miniaturas = fixture.nativeElement.querySelectorAll('.miniatura');
+        expect(miniaturas.length).toBe(1);
+
+        const quitar: HTMLButtonElement = fixture.nativeElement.querySelector('.quitar-imagen');
+        quitar.click();
+        expect(control.value).toEqual([]);
+        done();
+      }
+    }, 10);
+  });
 });

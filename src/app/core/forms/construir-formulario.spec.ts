@@ -2,7 +2,6 @@ import { FormBuilder, FormGroup } from '@angular/forms';
 import { construirFormularioRegistro } from './construir-formulario';
 import { crearRegistroVacio } from '../models/registro.model';
 import { SECCIONES } from '../data/secciones.data';
-import { CATALOGO_MATERIAL } from '../data/material-utilizado.data';
 
 describe('construirFormularioRegistro', () => {
   const fb = new FormBuilder();
@@ -40,13 +39,10 @@ describe('construirFormularioRegistro', () => {
     expect(form.get('vehiculosInvolucrados')).toBeTruthy();
   });
 
-  it('crea un control marcado+cantidad por cada ítem del catálogo de material', () => {
+  it('un campo tipo "imagenes" tiene valor por defecto [] (arreglo de imágenes)', () => {
     const form = construirFormularioRegistro(fb, crearRegistroVacio());
-    const grupoMaterial = form.get('materialUtilizado')!;
-    const totalItems = CATALOGO_MATERIAL.reduce((n, c) => n + c.items.length, 0);
-    const primerItem = CATALOGO_MATERIAL[0].items[0];
-    expect(grupoMaterial.get(`${primerItem.clave}.marcado`)).toBeTruthy();
-    expect(Object.keys((grupoMaterial as any).controls).length).toBe(totalItems);
+    const control = form.get('hospitalReceptor')!.get('imagenesEkgRxLaboratorios')!;
+    expect(control.value).toEqual([]);
   });
 
   it('un campo tipo "checkbox" (booleano simple) tiene valor por defecto false, no []', () => {

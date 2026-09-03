@@ -1,12 +1,11 @@
 import { ExcelExportadorService } from './excel-exportador.service';
 import { crearRegistroVacio } from '../../core/models/registro.model';
 import { SECCIONES } from '../../core/data/secciones.data';
-import { CATALOGO_MATERIAL } from '../../core/data/material-utilizado.data';
 
 describe('ExcelExportadorService', () => {
   const servicio = new ExcelExportadorService();
 
-  it('construirLibro() crea una hoja por cada sección más una hoja de material utilizado', async () => {
+  it('construirLibro() crea una hoja por cada sección', async () => {
     const registro = crearRegistroVacio();
     const libro = await servicio.construirLibro(registro as any);
 
@@ -14,7 +13,6 @@ describe('ExcelExportadorService', () => {
     for (const seccion of SECCIONES) {
       expect(nombresHojas).withContext(seccion.clave).toContain(seccion.titulo.slice(0, 31));
     }
-    expect(nombresHojas).toContain('Material Utilizado');
   });
 
   it('la hoja de una sección tiene el valor del campo en la fila correspondiente', async () => {
@@ -50,15 +48,13 @@ describe('ExcelExportadorService', () => {
     expect(filaMp!.getCell(2).text).toBe('No');
   });
 
-  it('la hoja de material utilizado marca los ítems seleccionados', async () => {
+  it('un campo tipo "imagenes" se resume como cantidad adjunta en vez de volcar el base64', async () => {
     const registro = crearRegistroVacio();
-    const primerItem = CATALOGO_MATERIAL[0].items[0];
-    registro.materialUtilizado[primerItem.clave] = { marcado: true, cantidad: '3' };
-    const libro = await servicio.construirLibro(registro);
+    (registro as any).hospitalReceptor.imagenesEkgRxLaboratorios = ['data:image/png;base64,AAA', 'data:image/png;base64,BBB'];
+    const libro = await servicio.construirLibro(registro as any);
 
-    const hoja = libro.getWorksheet('Material Utilizado');
-    const fila = hoja!.getRows(1, hoja!.rowCount)!.find(f => f.getCell(1).text === primerItem.nombre);
-    expect(fila!.getCell(2).text).toBe('Sí');
-    expect(fila!.getCell(3).text).toBe('3');
+    const hoja = libro.getWorksheet('XVI. Hospital Receptor');
+    const fila = hoja!.getRows(1, hoja!.rowCount)!.find(f => f.getCell(1).text === 'Imágenes de EKG, Rx y/o laboratorios');
+    expect(fila!.getCell(2).text).toContain('2 imagen(es) adjunta(s)');
   });
 });

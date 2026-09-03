@@ -39,17 +39,17 @@ describe('FormularioComponent', () => {
     expect(fixture.nativeElement.textContent).toContain(SECCIONES[0].titulo);
   });
 
-  it('el último paso muestra app-material-utilizado', () => {
+  it('el último paso sigue mostrando app-seccion-paso (la última sección del catálogo)', () => {
     fixture.componentInstance.irAPaso(fixture.componentInstance.totalPasos - 1);
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('app-material-utilizado')).toBeTruthy();
-    expect(fixture.nativeElement.querySelectorAll('app-seccion-paso').length).toBe(0);
+    expect(fixture.nativeElement.querySelectorAll('app-seccion-paso').length).toBe(1);
+    expect(fixture.nativeElement.textContent).toContain(SECCIONES[SECCIONES.length - 1].titulo);
   });
 
-  it('el select de saltar a sección lista todos los pasos (secciones + material)', () => {
+  it('el select de saltar a sección lista todas las secciones', () => {
     const select: HTMLSelectElement = fixture.nativeElement.querySelector('select.salto-seccion');
     expect(select).toBeTruthy();
-    expect(select.options.length).toBe(SECCIONES.length + 1);
+    expect(select.options.length).toBe(SECCIONES.length);
   });
 
   it('Anterior se deshabilita en el primer paso y Siguiente en el último', () => {

@@ -1,7 +1,6 @@
 import { Component, Input, OnChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SECCIONES } from '../../../core/data/secciones.data';
-import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
 
 /**
  * Réplica imprimible de la hoja física oficial de UMAM (Registro de Atención
@@ -65,13 +64,12 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
               <caption>CRONOMETRÍA</caption>
               <thead>
                 <tr>
-                  <th>HORA DE LLAMADA</th><th>HORA DE SALIDA</th><th>HORA DE LLEGADA</th>
+                  <th>HORA DE SALIDA</th><th>HORA DE LLEGADA</th>
                   <th>HORA DE TRASLADO</th><th>HORA DE HOSPITAL</th><th>HORA DE LIBERACIÓN</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td>{{ v('datosServicio', 'horaLlamada') }}</td>
                   <td>{{ v('datosServicio', 'horaSalida') }}</td>
                   <td>{{ v('datosServicio', 'horaLlegada') }}</td>
                   <td>{{ v('datosServicio', 'horaTraslado') }}</td>
@@ -86,12 +84,6 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
                 <span class="casilla" [class.marcada]="marcado('datosServicio', 'motivoAtencion', o)"></span>{{ o | uppercase }}
               </span>
             </div>
-            <div class="titulo-campo">UBICACIÓN DEL SERVICIO:</div>
-            <div class="fila-lineas"><span class="titulo-campo">CALLE:</span><span class="linea">{{ v('datosServicio', 'calle') }}</span></div>
-            <div class="fila-lineas">
-              <span class="titulo-campo">ENTRE:</span><span class="linea">{{ v('datosServicio', 'entreCalle1') }}</span>
-              <span class="titulo-campo">Y</span><span class="linea">{{ v('datosServicio', 'entreCalle2') }}</span>
-            </div>
             <div class="fila-lineas"><span class="titulo-campo">COLONIA / COMUNIDAD:</span><span class="linea">{{ v('datosServicio', 'colonia') }}</span></div>
             <div class="fila-lineas"><span class="titulo-campo">DELEGACIÓN POLÍTICA / MUNICIPIO:</span><span class="linea">{{ v('datosServicio', 'delegacionMunicipio') }}</span></div>
             <div class="grupo-opciones">
@@ -101,6 +93,7 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
               </span>
               <span class="linea">{{ v('datosServicio', 'lugarOcurrenciaOtro') }}</span>
             </div>
+            <div class="fila-lineas"><span class="titulo-campo">RESPONSABLE DE ENTREGA DEL PACIENTE:</span><span class="linea">{{ v('datosServicio', 'responsableEntregaPaciente') }}</span></div>
           </div>
         </div>
 
@@ -109,8 +102,7 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
           <div class="tab-seccion">III CONTROL</div>
           <div class="cuerpo-seccion">
             <div class="fila-lineas">
-              <span class="titulo-campo">NÚMERO DE AMBULANCIA — INICIALES:</span><span class="linea">{{ v('control', 'ambulanciaIniciales') }}</span>
-              <span class="titulo-campo">NÚMERO:</span><span class="linea">{{ v('control', 'ambulanciaNumero') }}</span>
+              <span class="titulo-campo">NÚMERO DE AMBULANCIA:</span><span class="linea">{{ v('control', 'ambulanciaNumero') }}</span>
             </div>
             <div class="fila-lineas"><span class="titulo-campo">OPERADOR:</span><span class="linea">{{ v('control', 'operador') }}</span></div>
             <div class="fila-lineas"><span class="titulo-campo">PRESTADORES DEL SERVICIO:</span><span class="linea">{{ v('control', 'prestadoresServicio') }}</span></div>
@@ -128,7 +120,6 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
               <span class="titulo-campo">MENORES DE 1 AÑO:</span><span class="linea corta">{{ v('datosPaciente', 'edadMeses') }}</span><span>MESES</span>
             </div>
             <div class="fila-lineas">
-              <span class="titulo-campo">LUGAR DE NACIMIENTO:</span><span class="linea">{{ v('datosPaciente', 'lugarNacimiento') }}</span>
               <span class="titulo-campo">FECHA DE NACIMIENTO:</span><span class="linea">{{ v('datosPaciente', 'fechaNacimiento') }}</span>
             </div>
             <div class="fila-lineas"><span class="titulo-campo">COLONIA / COMUNIDAD:</span><span class="linea">{{ v('datosPaciente', 'colonia') }}</span></div>
@@ -137,8 +128,8 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
               <span class="titulo-campo">TELÉFONO:</span><span class="linea">{{ v('datosPaciente', 'telefono') }}</span>
               <span class="titulo-campo">OCUPACIÓN:</span><span class="linea">{{ v('datosPaciente', 'ocupacion') }}</span>
             </div>
-            <div class="fila-lineas"><span class="titulo-campo">DERECHOHABIENTE A:</span><span class="linea">{{ v('datosPaciente', 'derechohabienteA') }}</span></div>
-            <div class="fila-lineas"><span class="titulo-campo">COMPAÑÍA DE SEGURO DE GASTOS MÉDICOS MAYORES:</span><span class="linea">{{ v('datosPaciente', 'companiaSeguroGastosMedicos') }}</span></div>
+            <div class="fila-lineas"><span class="titulo-campo">NÚMERO DE EMPLEADO:</span><span class="linea">{{ v('datosPaciente', 'numeroEmpleado') }}</span></div>
+            <div class="fila-lineas"><span class="titulo-campo">TIPO DE SERVICIO MÉDICO:</span><span class="linea">{{ v('datosPaciente', 'tipoServicioMedico') }}</span></div>
           </div>
         </div>
 
@@ -327,6 +318,7 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
                 <div class="opcion" *ngFor="let o of ops('evaluacionInicial', 'ventilacionAuscultacion')">
                   <span class="casilla" [class.marcada]="marcado('evaluacionInicial', 'ventilacionAuscultacion', o)"></span>{{ o | uppercase }}
                 </div>
+                <div class="fila-lineas"><span class="titulo-campo">ESPECIFIQUE:</span><span class="linea">{{ v('evaluacionInicial', 'ventilacionAuscultacionEspecifique') }}</span></div>
               </div>
               <div class="bloque">
                 <div class="titulo-campo">ALTERNACIONES LOCALIZADAS EN:</div>
@@ -405,6 +397,7 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
                     <span class="casilla" [class.marcada]="marcado('evaluacionSecundaria', 'zonasLesion', o)"></span>{{ o | uppercase }}
                   </span>
                 </div>
+                <div class="fila-lineas"><span class="titulo-campo">ESPECIFIQUE:</span><span class="linea">{{ v('evaluacionSecundaria', 'zonasLesionEspecifique') }}</span></div>
                 <div class="titulo-campo">PUPILAS</div>
                 <div class="pupilas">
                   <span class="opcion" *ngFor="let o of ops('evaluacionSecundaria', 'pupilas')">
@@ -420,15 +413,15 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
               <thead>
                 <tr>
                   <th>HORA</th><th>FR</th><th>FC</th><th>TAS</th><th>TAD</th><th>SpO2</th>
-                  <th>TEMP</th><th>GLUC</th><th>EKG</th><th>EXAMEN RÁPIDO NEUROLÓGICO</th>
+                  <th>TEMP</th><th>GLUC</th><th>ETCO2</th><th>HALLAZGOS EKG</th>
                 </tr>
               </thead>
               <tbody>
                 <tr *ngFor="let fila of filasSignos">
                   <td>{{ fila['hora'] }}</td><td>{{ fila['fr'] }}</td><td>{{ fila['fc'] }}</td>
                   <td>{{ fila['tas'] }}</td><td>{{ fila['tad'] }}</td><td>{{ fila['spo2'] }}</td>
-                  <td>{{ fila['temp'] }}</td><td>{{ fila['gluc'] }}</td><td>{{ fila['ekg'] }}</td>
-                  <td>{{ fila['examenNeurologico'] }}</td>
+                  <td>{{ fila['temp'] }}</td><td>{{ fila['gluc'] }}</td><td>{{ fila['etco2'] }}</td>
+                  <td>{{ fila['hallazgosEkg'] }}</td>
                 </tr>
               </tbody>
             </table>
@@ -478,10 +471,8 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
                 <div class="fila-lineas"><span class="titulo-campo">TOTAL:</span><span class="linea corta">{{ v('anamnesis', 'glasgowTotal') }}</span></div>
               </div>
               <div class="bloque">
-                <div class="titulo-campo">TRAUMA SCORE</div>
-                <div class="fila-lineas"><span class="titulo-campo">TAS:</span><span class="linea corta">{{ v('anamnesis', 'traumaScoreTas') }}</span></div>
-                <div class="fila-lineas"><span class="titulo-campo">FR:</span><span class="linea corta">{{ v('anamnesis', 'traumaScoreFr') }}</span></div>
-                <div class="fila-lineas"><span class="titulo-campo">TOTAL:</span><span class="linea corta">{{ v('anamnesis', 'traumaScoreTotal') }}</span></div>
+                <div class="titulo-campo">NEWS2</div>
+                <div class="fila-lineas"><span class="titulo-campo">PUNTAJE TOTAL:</span><span class="linea corta">{{ v('anamnesis', 'news2Total') }}</span></div>
               </div>
             </div>
           </div>
@@ -509,13 +500,22 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
                 <div class="opcion" *ngFor="let o of ops('tratamiento', 'asistenciaVentilatoria')">
                   <span class="casilla" [class.marcada]="marcado('tratamiento', 'asistenciaVentilatoria', o)"></span>{{ o | uppercase }}
                 </div>
+                <div class="titulo-campo">VENTILACIÓN MECÁNICA:</div>
+                <div class="opcion" *ngFor="let o of ops('tratamiento', 'ventilacionMecanica')">
+                  <span class="casilla" [class.marcada]="marcado('tratamiento', 'ventilacionMecanica', o)"></span>{{ o | uppercase }}
+                </div>
                 <div class="fila-lineas">
                   <span class="titulo-campo">FREC:</span><span class="linea corta">{{ v('tratamiento', 'frecuenciaVentilatoria') }}</span>
                   <span class="titulo-campo">VOL:</span><span class="linea corta">{{ v('tratamiento', 'volumenVentilatorio') }}</span>
                 </div>
                 <div class="fila-lineas">
                   <span class="titulo-campo">PEEP:</span><span class="linea corta">{{ v('tratamiento', 'peep') }}</span>
-                  <span class="titulo-campo">PRESIÓN:</span><span class="linea corta">{{ v('tratamiento', 'presionVentilatoria') }}</span>
+                  <span class="titulo-campo">PIP:</span><span class="linea corta">{{ v('tratamiento', 'presionVentilatoria') }}</span>
+                </div>
+                <div class="fila-lineas">
+                  <span class="titulo-campo">I:E:</span><span class="linea corta">{{ v('tratamiento', 'relacionIE') }}</span>
+                  <span class="titulo-campo">FiO2:</span><span class="linea corta">{{ v('tratamiento', 'fio2') }}</span>
+                  <span class="titulo-campo">PS:</span><span class="linea corta">{{ v('tratamiento', 'ps') }}</span>
                 </div>
                 <div class="fila-lineas"><span class="titulo-campo">MODO VENTILATORIO:</span><span class="linea corta">{{ v('tratamiento', 'modoVentilatorio') }}</span></div>
               </div>
@@ -549,6 +549,7 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
                 <div class="opcion" *ngFor="let o of ops('tratamiento', 'sitioAplicacion')">
                   <span class="casilla" [class.marcada]="marcado('tratamiento', 'sitioAplicacion', o)"></span>{{ o | uppercase }}
                 </div>
+                <div class="fila-lineas"><span class="titulo-campo">ESPECIFIQUE:</span><span class="linea">{{ v('tratamiento', 'sitioAplicacionEspecifique') }}</span></div>
               </div>
               <div class="bloque">
                 <div class="titulo-campo">TIPO DE SOLUCIONES:</div>
@@ -651,7 +652,7 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
           <div class="cuerpo-seccion">
             <div class="renglones-observaciones">
               <div class="renglon-observacion">{{ v('observaciones', 'observaciones') }}</div>
-              <div class="renglon-observacion"></div>
+              <div class="renglon-observacion">{{ v('observaciones', 'observacionesAdicionales') }}</div>
               <div class="renglon-observacion"></div>
               <div class="renglon-observacion"></div>
             </div>
@@ -703,17 +704,12 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
               </tbody>
             </table>
 
-            <div class="fila-lineas">
-              <span class="titulo-campo">POSICIÓN, ORIENTACIÓN (DONDE Y COMO) SE ENCONTRÓ EL PACIENTE:</span>
-              <span class="linea">{{ v('datosLegales', 'posicionOrientacionPaciente') }}</span>
-            </div>
             <div class="fila-lineas"><span class="titulo-campo">PERTENENCIAS:</span><span class="linea">{{ v('datosLegales', 'pertenencias') }}</span></div>
             <div class="fila-lineas">
               <span class="titulo-campo">RECIBIÓ LAS PERTENENCIAS:</span>
               <span class="linea">{{ v('datosLegales', 'recibioPertenenciasNombreFirmaCargo') }}</span>
               <span class="pie-firma">NOMBRE, FIRMA Y CARGO</span>
             </div>
-            <div class="fila-lineas"><span class="titulo-campo">COMPAÑÍA DE SEGURO DE AUTOMÓVIL:</span><span class="linea">{{ v('datosLegales', 'companiaSeguroAutomovil') }}</span></div>
           </div>
         </div>
 
@@ -733,22 +729,11 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
                 <span class="pie-firma">NOMBRE Y FIRMA DE PERSONA QUE RECIBE EL PACIENTE</span>
               </div>
             </div>
+            <div class="titulo-campo">IMÁGENES DE EKG, RX Y/O LABORATORIOS:</div>
+            <div class="imagenes-adjuntas">
+              <img *ngFor="let imagen of imagenesHospitalReceptor" [src]="imagen" alt="" />
+            </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- MATERIAL UTILIZADO -->
-    <h2 class="titulo-material">MATERIAL UTILIZADO</h2>
-    <div class="material-grid">
-      <div class="material-categoria" *ngFor="let categoria of categorias">
-        <div class="material-cabecera">{{ categoria.nombre | uppercase }}</div>
-        <div class="material-item" *ngFor="let item of categoria.items">
-          <span class="material-etiqueta">
-            {{ item.nombre }}<ng-container *ngIf="item.tieneMedida"> — {{ item.unidadMedida ? (item.unidadMedida | uppercase) : 'MEDIDA' }} ____</ng-container>
-          </span>
-          <span class="material-cantidad">{{ materialCantidad(item.clave) }}</span>
-          <span class="casilla" [class.marcada]="materialMarcado(item.clave)"></span>
         </div>
       </div>
     </div>
@@ -760,6 +745,38 @@ import { CATALOGO_MATERIAL } from '../../../core/data/material-utilizado.data';
       <div class="pie-linea">Cd. Juárez, Chih. • C. P. 32401</div>
       <div class="pie-linea">E-mail: <strong>ambulanciasumam&#64;yahoo.com</strong></div>
     </footer>
+  </div>
+
+  <div class="salto"></div>
+
+  <!-- ============================ PÁGINA 3 (CONSENTIMIENTO INFORMADO) ============================ -->
+  <div class="pagina pagina-3">
+    <div class="seccion">
+      <div class="tab-seccion">XVII CONSENTIMIENTO INFORMADO</div>
+      <div class="cuerpo-seccion">
+        <p class="texto-legal">
+          Declaro que el personal de la ambulancia UMAM me ha explicado, en términos que comprendo,
+          la valoración, el tratamiento y/o el traslado que se me propone realizar, así como sus
+          riesgos, beneficios y alternativas. He tenido oportunidad de hacer preguntas y de manera
+          libre e informada otorgo mi consentimiento para que se lleve a cabo la atención
+          prehospitalaria descrita en este registro.
+        </p>
+        <div class="firmas">
+          <div class="firma">
+            <span class="linea">{{ v('consentimientoInformado', 'nombrePacienteConsentimiento') }}</span>
+            <span class="pie-firma">NOMBRE Y FIRMA DEL PACIENTE</span>
+          </div>
+          <div class="firma">
+            <span class="linea">{{ v('consentimientoInformado', 'nombreResponsableConsentimiento') }}</span>
+            <span class="pie-firma">NOMBRE Y FIRMA DEL FAMILIAR O RESPONSABLE</span>
+          </div>
+          <div class="firma">
+            <span class="linea">{{ v('consentimientoInformado', 'nombreParamedicoConsentimiento') }}</span>
+            <span class="pie-firma">NOMBRE Y FIRMA DEL PARAMÉDICO</span>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </div>
 `,
@@ -1051,44 +1068,12 @@ $tinta: #1a1a1a;
   .col-num { width: 10px; font-weight: 700; }
   td { text-align: left; }
 }
-.titulo-material {
-  text-align: center;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  margin: 8px 0 4px;
-}
-.material-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 4px;
-  align-items: start;
-}
-.material-categoria { border: 1px solid $azul; break-inside: avoid; }
-.material-cabecera {
-  background: $celeste;
-  color: $azul-oscuro;
-  font-weight: 700;
-  font-size: 6px;
-  text-align: center;
-  padding: 1.5px 2px;
-  border-bottom: 1px solid $azul;
-  print-color-adjust: exact;
-  -webkit-print-color-adjust: exact;
-}
-.material-item {
+.imagenes-adjuntas {
   display: flex;
-  align-items: center;
-  gap: 2px;
-  padding: 0.5px 3px;
-  font-size: 5.8px;
-  .material-etiqueta { flex: 1; }
-  .material-cantidad {
-    min-width: 14px;
-    border-bottom: 1px solid $borde;
-    text-align: center;
-  }
-  .casilla { margin-right: 0; }
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0;
+  img { width: 60px; height: 60px; object-fit: cover; border: 1px solid $borde; }
 }
 .pagina-1 { zoom: 0.9; }
 .pie {
@@ -1115,8 +1100,6 @@ $tinta: #1a1a1a;
 export class PdfVistaComponent implements OnChanges {
   @Input() registro: Record<string, any> | undefined;
 
-  categorias = CATALOGO_MATERIAL;
-
   /** Códigos de la hoja física para EXPLORACIÓN FÍSICA (los nombres deben
    * coincidir con las opciones de evaluacionSecundaria.exploracionFisica). */
   exploracionFisica = [
@@ -1135,10 +1118,12 @@ export class PdfVistaComponent implements OnChanges {
     { codigo: 'AS', nombre: 'Alteraciones de sensibilidad' },
     { codigo: 'AM', nombre: 'Alteraciones de movilidad' },
     { codigo: 'DO', nombre: 'Dolor' },
+    { codigo: 'AMP', nombre: 'Amputación' },
   ];
   filasSignos: Record<string, string>[] = [];
   filasFarmaco: Record<string, string>[] = [];
   filasVehiculos: Record<string, string>[] = [];
+  imagenesHospitalReceptor: string[] = [];
 
   ngOnChanges(): void {
     // Pre-calculadas para que *ngFor no reciba un arreglo nuevo en cada ciclo
@@ -1146,6 +1131,7 @@ export class PdfVistaComponent implements OnChanges {
     this.filasSignos = this.rellenar('signosVitales', 3);
     this.filasFarmaco = this.rellenar('manejoFarmacologico', 4);
     this.filasVehiculos = this.rellenar('vehiculosInvolucrados', 4);
+    this.imagenesHospitalReceptor = (this.registro?.['hospitalReceptor']?.['imagenesEkgRxLaboratorios'] as string[] | undefined) ?? [];
   }
 
   /** Valor plano de un campo; '' si está vacío (la hoja se imprime en blanco). */
@@ -1172,15 +1158,6 @@ export class PdfVistaComponent implements OnChanges {
   ops(seccionClave: string, campoClave: string): string[] {
     const seccion = SECCIONES.find(s => s.clave === seccionClave);
     return seccion?.campos.find(c => c.clave === campoClave)?.opciones ?? [];
-  }
-
-  materialMarcado(clave: string): boolean {
-    return this.registro?.['materialUtilizado']?.[clave]?.marcado === true;
-  }
-
-  materialCantidad(clave: string): string {
-    const cantidad = this.registro?.['materialUtilizado']?.[clave]?.cantidad;
-    return cantidad ? String(cantidad) : '';
   }
 
   private rellenar(clave: string, minimo: number): Record<string, string>[] {

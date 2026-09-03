@@ -20,14 +20,12 @@ export interface RegistroAtencionPrehospitalaria {
   observaciones: Record<string, unknown>;
   datosLegales: Record<string, unknown>;
   hospitalReceptor: Record<string, unknown>;
+  consentimientoInformado: Record<string, unknown>;
 
   // Tablas repetibles (una fila = un Record<claveColumna, valor>)
   signosVitales: Record<string, unknown>[];
   manejoFarmacologico: Record<string, unknown>[];
   vehiculosInvolucrados: Record<string, unknown>[];
-
-  // Material utilizado: clave del ítem del catálogo -> { marcado, cantidad? }
-  materialUtilizado: Record<string, { marcado: boolean; cantidad?: string }>;
 }
 
 export function crearRegistroVacio(): RegistroAtencionPrehospitalaria {
@@ -51,9 +49,9 @@ export function crearRegistroVacio(): RegistroAtencionPrehospitalaria {
     observaciones: {},
     datosLegales: {},
     hospitalReceptor: {},
+    consentimientoInformado: {},
     signosVitales: [],
     manejoFarmacologico: [],
     vehiculosInvolucrados: [],
-    materialUtilizado: {},
   };
 }

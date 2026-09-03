@@ -6,7 +6,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { SeccionPasoComponent } from '../../shared/seccion-paso/seccion-paso.component';
-import { MaterialUtilizadoComponent } from '../material-utilizado/material-utilizado.component';
 import { PdfVistaComponent } from '../exportacion/pdf-vista/pdf-vista.component';
 import { ExcelExportadorService } from '../exportacion/excel-exportador.service';
 import { SECCIONES } from '../../core/data/secciones.data';
@@ -19,7 +18,7 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, MatButtonModule, MatIconModule, MatToolbarModule,
-    SeccionPasoComponent, MaterialUtilizadoComponent, PdfVistaComponent,
+    SeccionPasoComponent, PdfVistaComponent,
   ],
   template: `
     <mat-toolbar class="encabezado">
@@ -41,15 +40,9 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
     <div class="layout" [formGroup]="form">
       <main class="contenido">
         <app-seccion-paso
-          *ngIf="pasoActual < secciones.length"
           [seccion]="secciones[pasoActual]"
           [grupo]="grupoDeSeccion(secciones[pasoActual].clave)"
         ></app-seccion-paso>
-
-        <div *ngIf="pasoActual === secciones.length" class="panel-material">
-          <h3>Material Utilizado</h3>
-          <app-material-utilizado [grupo]="grupoMaterialUtilizado()"></app-material-utilizado>
-        </div>
       </main>
     </div>
 
@@ -90,8 +83,6 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
     .barra-progreso-relleno { height: 100%; background: var(--umam-header-bg, #1892d3); transition: width 0.2s; }
     .layout { padding: 16px; padding-bottom: 88px; }
     .contenido { max-width: 900px; margin: 0 auto; }
-    .panel-material { background: #fff; border: 1px solid var(--umam-section-border, #b9def2); border-radius: 12px; padding: 16px; }
-    .panel-material h3 { margin: 0 0 16px; color: var(--umam-header-bg, #1892d3); }
     .barra-acciones { position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: white; border-top: 1px solid var(--umam-section-border, #b9def2); }
     .paso-siguiente { min-width: 130px; }
     .separador { flex: 1; }
@@ -109,9 +100,8 @@ export class FormularioComponent implements OnInit {
   form: FormGroup;
   estadoGuardado = '';
   pasoActual = 0;
-  /** Secciones del catálogo + el paso final de Material Utilizado. */
-  totalPasos = SECCIONES.length + 1;
-  titulosPasos = [...SECCIONES.map(s => s.titulo), 'Material Utilizado'];
+  totalPasos = SECCIONES.length;
+  titulosPasos = SECCIONES.map(s => s.titulo);
   /**
    * Foto del formulario tomada justo antes de imprimir. La vista de impresión
    * solo importa en el instante de exportar/imprimir, así que evitamos leer
@@ -232,9 +222,5 @@ export class FormularioComponent implements OnInit {
 
   grupoDeSeccion(clave: string): FormGroup {
     return this.form.get(clave) as FormGroup;
-  }
-
-  grupoMaterialUtilizado(): FormGroup {
-    return this.form.get('materialUtilizado') as FormGroup;
   }
 }

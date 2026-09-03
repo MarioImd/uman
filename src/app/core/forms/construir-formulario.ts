@@ -1,6 +1,5 @@
 import { FormArray, FormBuilder, FormGroup } from '@angular/forms';
 import { SECCIONES } from '../data/secciones.data';
-import { CATALOGO_MATERIAL } from '../data/material-utilizado.data';
 import { RegistroAtencionPrehospitalaria } from '../models/registro.model';
 
 export function construirFormularioRegistro(
@@ -20,7 +19,12 @@ export function construirFormularioRegistro(
       : (registro as unknown as Record<string, unknown>)[seccion.clave] as Record<string, unknown> | undefined;
     const controlesSeccion: Record<string, unknown> = {};
     for (const campo of seccion.campos) {
-      controlesSeccion[campo.clave] = [valoresSeccion?.[campo.clave] ?? (campo.tipo === 'checkbox' ? false : campo.tipo === 'checkbox-grupo' ? [] : '')];
+      const valorPorDefecto = campo.tipo === 'checkbox'
+        ? false
+        : campo.tipo === 'checkbox-grupo' || campo.tipo === 'imagenes'
+          ? []
+          : '';
+      controlesSeccion[campo.clave] = [valoresSeccion?.[campo.clave] ?? valorPorDefecto];
     }
     grupo[seccion.clave] = fb.group(controlesSeccion);
 
@@ -32,18 +36,6 @@ export function construirFormularioRegistro(
       grupo[tabla.clave] = fb.array(filas);
     }
   }
-
-  const controlesMaterial: Record<string, unknown> = {};
-  for (const categoria of CATALOGO_MATERIAL) {
-    for (const item of categoria.items) {
-      const guardado = registro.materialUtilizado[item.clave];
-      controlesMaterial[item.clave] = fb.group({
-        marcado: [guardado?.marcado ?? false],
-        cantidad: [guardado?.cantidad ?? ''],
-      });
-    }
-  }
-  grupo['materialUtilizado'] = fb.group(controlesMaterial);
 
   return fb.group(grupo);
 }
