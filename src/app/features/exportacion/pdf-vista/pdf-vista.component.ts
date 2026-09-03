@@ -1072,6 +1072,10 @@ $tinta: #1a1a1a;
   img { width: 60px; height: 60px; object-fit: cover; border: 1px solid $borde; }
 }
 .pagina-1 { zoom: 0.9; }
+// La página 2 (reverso) le sobraba espacio abajo tras quitar Material
+// Utilizado: se agranda un poco para aprovecharlo, igual que la página 1 se
+// achica para caber — mismo mecanismo, sentido contrario.
+.pagina-2 { zoom: 1.18; }
 .pie {
   margin-top: 8px;
   background: #111;
