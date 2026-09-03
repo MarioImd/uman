@@ -477,6 +477,17 @@ import { SECCIONES } from '../../../core/data/secciones.data';
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="salto"></div>
+
+  <!-- ============================ PÁGINA 2 (REVERSO) ============================ -->
+  <div class="pagina pagina-2">
+    <div class="columnas">
+      <!-- ============ COLUMNA IZQUIERDA ============ -->
+      <div class="columna">
 
         <!-- XI. TRATAMIENTO -->
         <div class="seccion">
@@ -584,17 +595,6 @@ import { SECCIONES } from '../../../core/data/secciones.data';
             </div>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="salto"></div>
-
-  <!-- ============================ PÁGINA 2 (REVERSO) ============================ -->
-  <div class="pagina pagina-2">
-    <div class="columnas">
-      <!-- ============ COLUMNA IZQUIERDA ============ -->
-      <div class="columna">
 
         <!-- XII. TRASLADO -->
         <div class="seccion">
@@ -735,6 +735,34 @@ import { SECCIONES } from '../../../core/data/secciones.data';
             </div>
           </div>
         </div>
+
+        <!-- XVII. CONSENTIMIENTO INFORMADO -->
+        <div class="seccion">
+          <div class="tab-seccion">XVII CONSENTIMIENTO INFORMADO</div>
+          <div class="cuerpo-seccion">
+            <p class="texto-legal">
+              Declaro que el personal de la ambulancia UMAM me ha explicado, en términos que
+              comprendo, la valoración, el tratamiento y/o el traslado que se me propone realizar,
+              así como sus riesgos, beneficios y alternativas. He tenido oportunidad de hacer
+              preguntas y de manera libre e informada otorgo mi consentimiento para que se lleve a
+              cabo la atención prehospitalaria descrita en este registro.
+            </p>
+            <div class="firmas">
+              <div class="firma">
+                <span class="linea">{{ v('consentimientoInformado', 'nombrePacienteConsentimiento') }}</span>
+                <span class="pie-firma">NOMBRE Y FIRMA DEL PACIENTE</span>
+              </div>
+              <div class="firma">
+                <span class="linea">{{ v('consentimientoInformado', 'nombreResponsableConsentimiento') }}</span>
+                <span class="pie-firma">NOMBRE Y FIRMA DEL FAMILIAR O RESPONSABLE</span>
+              </div>
+              <div class="firma">
+                <span class="linea">{{ v('consentimientoInformado', 'nombreParamedicoConsentimiento') }}</span>
+                <span class="pie-firma">NOMBRE Y FIRMA DEL PARAMÉDICO</span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -745,38 +773,6 @@ import { SECCIONES } from '../../../core/data/secciones.data';
       <div class="pie-linea">Cd. Juárez, Chih. • C. P. 32401</div>
       <div class="pie-linea">E-mail: <strong>ambulanciasumam&#64;yahoo.com</strong></div>
     </footer>
-  </div>
-
-  <div class="salto"></div>
-
-  <!-- ============================ PÁGINA 3 (CONSENTIMIENTO INFORMADO) ============================ -->
-  <div class="pagina pagina-3">
-    <div class="seccion">
-      <div class="tab-seccion">XVII CONSENTIMIENTO INFORMADO</div>
-      <div class="cuerpo-seccion">
-        <p class="texto-legal">
-          Declaro que el personal de la ambulancia UMAM me ha explicado, en términos que comprendo,
-          la valoración, el tratamiento y/o el traslado que se me propone realizar, así como sus
-          riesgos, beneficios y alternativas. He tenido oportunidad de hacer preguntas y de manera
-          libre e informada otorgo mi consentimiento para que se lleve a cabo la atención
-          prehospitalaria descrita en este registro.
-        </p>
-        <div class="firmas">
-          <div class="firma">
-            <span class="linea">{{ v('consentimientoInformado', 'nombrePacienteConsentimiento') }}</span>
-            <span class="pie-firma">NOMBRE Y FIRMA DEL PACIENTE</span>
-          </div>
-          <div class="firma">
-            <span class="linea">{{ v('consentimientoInformado', 'nombreResponsableConsentimiento') }}</span>
-            <span class="pie-firma">NOMBRE Y FIRMA DEL FAMILIAR O RESPONSABLE</span>
-          </div>
-          <div class="firma">
-            <span class="linea">{{ v('consentimientoInformado', 'nombreParamedicoConsentimiento') }}</span>
-            <span class="pie-firma">NOMBRE Y FIRMA DEL PARAMÉDICO</span>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 </div>
 `,

@@ -29,16 +29,19 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
     expect(el.textContent).toContain('Cd. Juárez');
   });
 
-  it('renderiza las pestañas laterales de sección de la página 1', () => {
+  it('renderiza las pestañas laterales de sección de la página 1 (frente)', () => {
     const el = render({});
     const pestanas = Array.from(el.querySelectorAll('.pagina-1 .tab-seccion')).map(p => p.textContent!.trim());
     for (const esperada of [
       'II DATOS DEL SERVICIO', 'III CONTROL', 'IV DATOS DEL PACIENTE', 'V CAUSA TRAUMÁTICA',
       'VI CAUSA CLÍNICA', 'VII PARTO', 'VIII EVALUACIÓN INICIAL', 'IX EVALUACIÓN SECUNDARIA',
-      'X ANAMNESIS', 'XI TRATAMIENTO',
+      'X ANAMNESIS',
     ]) {
       expect(pestanas).toContain(esperada);
     }
+    // XI Tratamiento se movió a la página 2 (reverso) para aprovechar el espacio
+    // que dejó libre Material Utilizado y no desbordar la página 1 a una hoja aparte.
+    expect(pestanas).not.toContain('XI TRATAMIENTO');
   });
 
   it('renderiza la tabla de cronometría con las 5 horas (sin hora de llamada)', () => {
@@ -87,7 +90,7 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
     const el = render(undefined);
     expect(el.querySelector('.pagina-1')).toBeTruthy();
     expect(el.querySelector('.pagina-2')).toBeTruthy();
-    expect(el.querySelector('.pagina-3')).toBeTruthy();
+    expect(el.querySelectorAll('.pagina').length).toBe(2);
     expect(el.querySelectorAll('.casilla.marcada').length).toBe(0);
   });
 
@@ -128,19 +131,20 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
       expect(pie.textContent).toContain('(656)625-9472');
     });
 
-    it('renderiza las secciones XII a XVI y el hospital receptor', () => {
+    it('renderiza las secciones XI a XVII (tratamiento se movió aquí, y consentimiento informado)', () => {
       const el = render({ hospitalReceptor: { nombreQuienEntrega: 'TUM Pedro' } });
       const pestanas = Array.from(el.querySelectorAll('.pagina-2 .tab-seccion')).map(p => p.textContent!.trim());
-      for (const esperada of ['XII TRASLADO', 'XIII OBSERVACIONES', 'XV DATOS LEGALES', 'XVI HOSPITAL RECEPTOR']) {
+      for (const esperada of [
+        'XI TRATAMIENTO', 'XII TRASLADO', 'XIII OBSERVACIONES', 'XV DATOS LEGALES',
+        'XVI HOSPITAL RECEPTOR', 'XVII CONSENTIMIENTO INFORMADO',
+      ]) {
         expect(pestanas).toContain(esperada);
       }
       expect(el.textContent).toContain('ACEPTACIÓN DE HOSPITAL RECEPTOR');
       expect(el.textContent).toContain('TUM Pedro');
     });
-  });
 
-  describe('página 3 (consentimiento informado)', () => {
-    it('renderiza el texto de consentimiento y las tres firmas', () => {
+    it('renderiza el texto de consentimiento informado y las tres firmas', () => {
       const el = render({
         consentimientoInformado: {
           nombrePacienteConsentimiento: 'Juan Pérez',
@@ -148,15 +152,15 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
           nombreParamedicoConsentimiento: 'TUM Pedro',
         },
       });
-      const pagina3 = el.querySelector('.pagina-3')!;
-      expect(pagina3.textContent).toContain('CONSENTIMIENTO INFORMADO');
-      expect(pagina3.textContent).toContain('otorgo mi consentimiento');
-      expect(pagina3.textContent).toContain('Juan Pérez');
-      expect(pagina3.textContent).toContain('María Pérez');
-      expect(pagina3.textContent).toContain('TUM Pedro');
-      expect(pagina3.textContent).toContain('NOMBRE Y FIRMA DEL PACIENTE');
-      expect(pagina3.textContent).toContain('NOMBRE Y FIRMA DEL FAMILIAR O RESPONSABLE');
-      expect(pagina3.textContent).toContain('NOMBRE Y FIRMA DEL PARAMÉDICO');
+      const pagina2 = el.querySelector('.pagina-2')!;
+      expect(pagina2.textContent).toContain('CONSENTIMIENTO INFORMADO');
+      expect(pagina2.textContent).toContain('otorgo mi consentimiento');
+      expect(pagina2.textContent).toContain('Juan Pérez');
+      expect(pagina2.textContent).toContain('María Pérez');
+      expect(pagina2.textContent).toContain('TUM Pedro');
+      expect(pagina2.textContent).toContain('NOMBRE Y FIRMA DEL PACIENTE');
+      expect(pagina2.textContent).toContain('NOMBRE Y FIRMA DEL FAMILIAR O RESPONSABLE');
+      expect(pagina2.textContent).toContain('NOMBRE Y FIRMA DEL PARAMÉDICO');
     });
   });
 });

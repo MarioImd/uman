@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { provideNativeDateAdapter } from '@angular/material/core';
 import { FormularioComponent } from './formulario.component';
 import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.service';
 import { crearRegistroVacio } from '../../core/models/registro.model';
@@ -15,7 +16,7 @@ describe('FormularioComponent', () => {
 
     await TestBed.configureTestingModule({
       imports: [FormularioComponent],
-      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }],
+      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, provideNativeDateAdapter()],
     }).compileComponents();
 
     fixture = TestBed.createComponent(FormularioComponent);
@@ -167,7 +168,7 @@ describe('FormularioComponent con un registro existente', () => {
 
     await TestBed.configureTestingModule({
       imports: [FormularioComponent],
-      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }],
+      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, provideNativeDateAdapter()],
     }).compileComponents();
 
     fixture = TestBed.createComponent(FormularioComponent);
@@ -200,7 +201,7 @@ describe('FormularioComponent cuando listar() rechaza la promesa (localStorage c
 
     await TestBed.configureTestingModule({
       imports: [FormularioComponent],
-      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }],
+      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, provideNativeDateAdapter()],
     }).compileComponents();
 
     fixture = TestBed.createComponent(FormularioComponent);

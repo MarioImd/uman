@@ -1,17 +1,55 @@
-import { Component, Input } from '@angular/core';
+import { Component, Input, OnDestroy } from '@angular/core';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
+import { MatDatepickerModule } from '@angular/material/datepicker';
+import { MatTimepickerModule } from '@angular/material/timepicker';
 import { CampoFormulario } from '../../core/models/campo-formulario.model';
+
+/** 'YYYY-MM-DD' (el mismo formato que ya guardaba <input type="date">) -> Date local, o null. */
+function textoAFecha(valor: unknown): Date | null {
+  if (typeof valor !== 'string' || !valor) return null;
+  const [anio, mes, dia] = valor.split('-').map(Number);
+  if (!anio || !mes || !dia) return null;
+  return new Date(anio, mes - 1, dia);
+}
+
+/** Date -> 'YYYY-MM-DD' local (evita el corrimiento de día de toISOString() en huso horario negativo). */
+function fechaATexto(fecha: Date | null): string {
+  if (!fecha) return '';
+  const anio = fecha.getFullYear();
+  const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+  const dia = String(fecha.getDate()).padStart(2, '0');
+  return `${anio}-${mes}-${dia}`;
+}
+
+/** 'HH:mm' (el mismo formato que ya guardaba <input type="time">) -> Date de referencia, o null. */
+function textoAHora(valor: unknown): Date | null {
+  if (typeof valor !== 'string' || !valor) return null;
+  const [horas, minutos] = valor.split(':').map(Number);
+  if (Number.isNaN(horas) || Number.isNaN(minutos)) return null;
+  const fecha = new Date(2000, 0, 1);
+  fecha.setHours(horas, minutos, 0, 0);
+  return fecha;
+}
+
+/** Date -> 'HH:mm'. */
+function horaATexto(fecha: Date | null): string {
+  if (!fecha) return '';
+  const horas = String(fecha.getHours()).padStart(2, '0');
+  const minutos = String(fecha.getMinutes()).padStart(2, '0');
+  return `${horas}:${minutos}`;
+}
 
 @Component({
   selector: 'app-campo-formulario',
   standalone: true,
   imports: [
     CommonModule, FormsModule, ReactiveFormsModule,
-    MatFormFieldModule, MatInputModule, MatSelectModule,
+    MatFormFieldModule, MatInputModule, MatSelectModule, MatDatepickerModule, MatTimepickerModule,
   ],
   template: `
     <div class="campo" [ngSwitch]="campo.tipo">
@@ -29,12 +67,16 @@ import { CampoFormulario } from '../../core/models/campo-formulario.model';
 
       <mat-form-field *ngSwitchCase="'fecha'" appearance="outline" class="campo-ancho-medio">
         <mat-label>{{ campo.etiqueta }}</mat-label>
-        <input matInput type="date" [formControl]="control" />
+        <input matInput [matDatepicker]="selectorFecha" [formControl]="controlFechaHora" />
+        <mat-datepicker-toggle matIconSuffix [for]="selectorFecha"></mat-datepicker-toggle>
+        <mat-datepicker #selectorFecha></mat-datepicker>
       </mat-form-field>
 
       <mat-form-field *ngSwitchCase="'hora'" appearance="outline" class="campo-ancho-medio">
         <mat-label>{{ campo.etiqueta }}</mat-label>
-        <input matInput type="time" [formControl]="control" />
+        <input matInput [matTimepicker]="selectorHora" [formControl]="controlFechaHora" />
+        <mat-timepicker-toggle matIconSuffix [for]="selectorHora"></mat-timepicker-toggle>
+        <mat-timepicker #selectorHora interval="5m"></mat-timepicker>
       </mat-form-field>
 
       <mat-form-field *ngSwitchCase="'textarea'" appearance="outline" class="campo-ancho-completo">
@@ -94,7 +136,20 @@ import { CampoFormulario } from '../../core/models/campo-formulario.model';
             <button type="button" class="quitar-imagen" (click)="quitarImagen(i)" aria-label="Quitar imagen">✕</button>
           </div>
         </div>
-        <input type="file" accept="image/*" multiple (change)="agregarImagenes($event)" />
+        <div class="acciones-imagenes">
+          <button type="button" class="chip" (click)="entradaCamara.click()">📷 Tomar foto</button>
+          <button type="button" class="chip" (click)="entradaArchivo.click()">🖼️ Subir imagen</button>
+        </div>
+        <!--
+          Dos <input type="file"> separados en vez de uno: el atributo "capture"
+          hace que el celular abra la cámara directo (sin pasar por la galería);
+          si el mismo input llevara "multiple" a la vez, algunos navegadores
+          ignoran "capture" y siempre abren la galería. El de subir archivo no
+          lleva "capture" (así el selector nativo ofrece galería/cámara/archivos
+          según el dispositivo) y sí acepta varias imágenes de una vez.
+        -->
+        <input #entradaCamara type="file" accept="image/*" capture="environment" hidden (change)="agregarImagenes($event)" />
+        <input #entradaArchivo type="file" accept="image/*" multiple hidden (change)="agregarImagenes($event)" />
       </div>
 
     </div>
@@ -126,6 +181,7 @@ import { CampoFormulario } from '../../core/models/campo-formulario.model';
       font-weight: 600;
     }
     .grupo-imagenes { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+    .acciones-imagenes { display: flex; flex-wrap: wrap; gap: 8px; }
     .miniaturas { display: flex; flex-wrap: wrap; gap: 8px; }
     .miniatura { position: relative; width: 72px; height: 72px; }
     .miniatura img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid var(--umam-section-border, #b9def2); }
@@ -136,9 +192,56 @@ import { CampoFormulario } from '../../core/models/campo-formulario.model';
     }
   `],
 })
-export class CampoFormularioComponent {
-  @Input() campo!: CampoFormulario;
-  @Input() control!: FormControl;
+export class CampoFormularioComponent implements OnDestroy {
+  private _campo!: CampoFormulario;
+  private _control!: FormControl;
+
+  /**
+   * Control interno tipo Date que alimenta mat-datepicker / mat-timepicker.
+   * El control externo (this.control) sigue guardando 'YYYY-MM-DD' / 'HH:mm'
+   * como texto plano — igual que antes de agregar los selectores de
+   * Material — para no tocar el modelo, el autosave a localStorage ni la
+   * exportación a PDF/Excel, que siguen leyendo/escribiendo esos strings tal
+   * cual. Se sincroniza en los setters (no en ngOnChanges) para que también
+   * funcione cuando las specs asignan `campo`/`control` directo a la
+   * instancia, sin pasar por un binding de plantilla.
+   */
+  controlFechaHora = new FormControl<Date | null>(null);
+  private suscripcionFechaHora?: Subscription;
+
+  @Input() set campo(valor: CampoFormulario) {
+    this._campo = valor;
+    this.sincronizarFechaHora();
+  }
+  get campo(): CampoFormulario {
+    return this._campo;
+  }
+
+  @Input() set control(valor: FormControl) {
+    this._control = valor;
+    this.sincronizarFechaHora();
+  }
+  get control(): FormControl {
+    return this._control;
+  }
+
+  ngOnDestroy(): void {
+    this.suscripcionFechaHora?.unsubscribe();
+  }
+
+  private sincronizarFechaHora(): void {
+    if (!this._campo || !this._control) return;
+    if (this._campo.tipo !== 'fecha' && this._campo.tipo !== 'hora') return;
+
+    this.suscripcionFechaHora?.unsubscribe();
+    const aFecha = this._campo.tipo === 'fecha' ? textoAFecha : textoAHora;
+    const aTexto = this._campo.tipo === 'fecha' ? fechaATexto : horaATexto;
+
+    this.controlFechaHora.setValue(aFecha(this._control.value), { emitEvent: false });
+    this.suscripcionFechaHora = this.controlFechaHora.valueChanges.subscribe(valor => {
+      this._control.setValue(aTexto(valor));
+    });
+  }
 
   estaMarcada(opcion: string): boolean {
     const valor = (this.control.value ?? []) as string[];
