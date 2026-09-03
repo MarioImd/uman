@@ -1,1 +1,11 @@
-<app-formulario></app-formulario>
+<nav class="navegacion-vistas">
+  <button type="button" class="pestana" [class.activa]="vista === 'formulario'" (click)="irAFormulario()">Formulario</button>
+  <button type="button" class="pestana" [class.activa]="vista === 'historial'" (click)="irAHistorial()">Historial</button>
+</nav>
+
+<app-formulario
+  *ngIf="vista === 'formulario'"
+  [registroInicial]="registroACargar"
+  (enviarAlHistorial)="irAHistorial()"
+></app-formulario>
+<app-historial *ngIf="vista === 'historial'" (abrir)="abrirDesdeHistorial($event)"></app-historial>

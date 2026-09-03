@@ -210,6 +210,93 @@ describe('CampoFormularioComponent', () => {
     expect(control.value).toBe('23:45');
   });
 
+  it('"Tomar foto" activa la cámara en vivo (getUserMedia) y muestra el <video> con los botones Capturar/Cancelar', async () => {
+    const pistaFalsa = jasmine.createSpyObj('MediaStreamTrack', ['stop']);
+    const streamFalso = { getTracks: () => [pistaFalsa] } as unknown as MediaStream;
+    spyOn(navigator.mediaDevices, 'getUserMedia').and.resolveTo(streamFalso);
+
+    const campo: CampoFormulario = { clave: 'imagenesEkgRxLaboratorios', etiqueta: 'Imágenes', tipo: 'imagenes' };
+    fixture.componentInstance.campo = campo;
+    fixture.componentInstance.control = new FormControl<string[]>([]);
+    fixture.detectChanges();
+
+    const botonTomarFoto: HTMLButtonElement = fixture.nativeElement.querySelector('.acciones-imagenes button');
+    botonTomarFoto.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ video: { facingMode: 'environment' } });
+    expect(fixture.componentInstance.mostrandoCamara).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.camara video')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('.acciones-imagenes')).toBeFalsy();
+
+    const botonCancelar: HTMLButtonElement = fixture.nativeElement.querySelector('.camara-acciones button:last-child');
+    botonCancelar.click();
+    fixture.detectChanges();
+
+    expect(pistaFalsa.stop).toHaveBeenCalled();
+    expect(fixture.componentInstance.mostrandoCamara).toBeFalse();
+  });
+
+  it('"Capturar" agrega la foto tomada de la cámara en vivo al arreglo del control y cierra la cámara', async () => {
+    const pistaFalsa = jasmine.createSpyObj('MediaStreamTrack', ['stop']);
+    const streamFalso = { getTracks: () => [pistaFalsa] } as unknown as MediaStream;
+    spyOn(navigator.mediaDevices, 'getUserMedia').and.resolveTo(streamFalso);
+
+    const campo: CampoFormulario = { clave: 'imagenesEkgRxLaboratorios', etiqueta: 'Imágenes', tipo: 'imagenes' };
+    const control = new FormControl<string[]>([]);
+    fixture.componentInstance.campo = campo;
+    fixture.componentInstance.control = control;
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('.acciones-imagenes button').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const botonCapturar: HTMLButtonElement = fixture.nativeElement.querySelector('.camara-acciones button:first-child');
+    botonCapturar.click();
+    fixture.detectChanges();
+
+    expect(control.value!.length).toBe(1);
+    expect(control.value![0]).toContain('data:image/jpeg;base64');
+    expect(pistaFalsa.stop).toHaveBeenCalled();
+    expect(fixture.componentInstance.mostrandoCamara).toBeFalse();
+  });
+
+  it('si getUserMedia rechaza (permiso denegado), muestra un mensaje de error en vez de la vista previa', async () => {
+    spyOn(navigator.mediaDevices, 'getUserMedia').and.rejectWith(new Error('Permiso denegado'));
+
+    const campo: CampoFormulario = { clave: 'imagenesEkgRxLaboratorios', etiqueta: 'Imágenes', tipo: 'imagenes' };
+    fixture.componentInstance.campo = campo;
+    fixture.componentInstance.control = new FormControl<string[]>([]);
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('.acciones-imagenes button').click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.mostrandoCamara).toBeFalse();
+    expect(fixture.nativeElement.textContent).toContain('No se pudo activar la cámara');
+  });
+
+  it('si el navegador no soporta getUserMedia, "Tomar foto" recae en el input nativo con "capture"', async () => {
+    spyOnProperty(navigator, 'mediaDevices').and.returnValue(undefined as unknown as MediaDevices);
+
+    const campo: CampoFormulario = { clave: 'imagenesEkgRxLaboratorios', etiqueta: 'Imágenes', tipo: 'imagenes' };
+    fixture.componentInstance.campo = campo;
+    fixture.componentInstance.control = new FormControl<string[]>([]);
+    fixture.detectChanges();
+
+    const entradaFallback: HTMLInputElement = fixture.nativeElement.querySelector('input[capture="environment"]');
+    const espia = spyOn(entradaFallback, 'click');
+
+    fixture.nativeElement.querySelector('.acciones-imagenes button').click();
+    await fixture.whenStable();
+
+    expect(espia).toHaveBeenCalled();
+    expect(fixture.componentInstance.mostrandoCamara).toBeFalse();
+  });
+
   it('un campo "fecha"/"hora" sin valor guardado arranca con el datepicker/timepicker interno en null', () => {
     const campo: CampoFormulario = { clave: 'fecha', etiqueta: 'Fecha', tipo: 'fecha' };
     const control = new FormControl('');

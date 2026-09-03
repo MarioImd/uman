@@ -53,17 +53,35 @@ describe('FormularioComponent', () => {
     expect(select.options.length).toBe(SECCIONES.length);
   });
 
-  it('Anterior se deshabilita en el primer paso y Siguiente en el último', () => {
+  it('Anterior se deshabilita en el primer paso; en el último paso "Siguiente" se reemplaza por "Enviar al Historial"', () => {
     const anterior: HTMLButtonElement = fixture.nativeElement.querySelector('button.paso-anterior');
-    const siguiente: HTMLButtonElement = fixture.nativeElement.querySelector('button.paso-siguiente');
     expect(anterior.disabled).toBeTrue();
-    expect(siguiente.disabled).toBeFalse();
+    expect(fixture.nativeElement.querySelector('button.paso-siguiente')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('button.enviar-historial')).toBeFalsy();
 
     fixture.componentInstance.irAPaso(fixture.componentInstance.totalPasos - 1);
     fixture.detectChanges();
     expect(anterior.disabled).toBeFalse();
-    expect(siguiente.disabled).toBeTrue();
+    expect(fixture.nativeElement.querySelector('button.paso-siguiente')).toBeFalsy();
+    expect(fixture.nativeElement.querySelector('button.enviar-historial')).toBeTruthy();
   });
+
+  it('"Enviar al Historial" guarda, exporta el PDF y emite enviarAlHistorial', fakeAsync(() => {
+    spyOn(window, 'print');
+    let emitido = false;
+    fixture.componentInstance.enviarAlHistorial.subscribe(() => (emitido = true));
+
+    fixture.componentInstance.irAPaso(fixture.componentInstance.totalPasos - 1);
+    fixture.detectChanges();
+
+    const boton: HTMLButtonElement = fixture.nativeElement.querySelector('button.enviar-historial');
+    boton.click();
+    tick();
+
+    expect(servicioFalso.guardar).toHaveBeenCalled();
+    expect(window.print).toHaveBeenCalled();
+    expect(emitido).toBeTrue();
+  }));
 
   it('un cambio en el formulario dispara guardar() (autosave) después del debounce', fakeAsync(() => {
     tick();
@@ -187,6 +205,46 @@ describe('FormularioComponent con un registro existente', () => {
     fixture.componentInstance.form.markAsDirty();
     tick();
     expect(fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.value).toBe('');
+  }));
+});
+
+describe('FormularioComponent con registroInicial (abierto desde el Historial)', () => {
+  let fixture: ComponentFixture<FormularioComponent>;
+  let servicioFalso: jasmine.SpyObj<RegistroService>;
+  const registroDelHistorial = { ...crearRegistroVacio(), folio: 'FOLIO-HISTORIAL' };
+  const masReciente = { ...crearRegistroVacio(), folio: 'FOLIO-MAS-RECIENTE' };
+
+  beforeEach(async () => {
+    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'listar', 'eliminar']);
+    // listar() sí tiene registros — si registroInicial no lo bloqueara, este
+    // se cargaría por encima del que se pidió abrir desde el Historial.
+    servicioFalso.listar.and.resolveTo([masReciente]);
+    servicioFalso.guardar.and.callFake(async r => r);
+
+    await TestBed.configureTestingModule({
+      imports: [FormularioComponent],
+      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, provideNativeDateAdapter()],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(FormularioComponent);
+    fixture.componentInstance.registroInicial = registroDelHistorial;
+  });
+
+  it('usa el registro pasado por @Input en vez de cargar "el más reciente" de listar()', fakeAsync(() => {
+    fixture.detectChanges();
+    tick();
+    expect(fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.value).toBe('FOLIO-HISTORIAL');
+    expect(servicioFalso.listar).not.toHaveBeenCalled();
+  }));
+
+  it('arranca en el paso 0 y con el autosave suscrito', fakeAsync(() => {
+    fixture.detectChanges();
+    tick();
+    expect(fixture.componentInstance.pasoActual).toBe(0);
+
+    fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.setValue('EDITADO');
+    tick(1500);
+    expect(servicioFalso.guardar).toHaveBeenCalled();
   }));
 });
 

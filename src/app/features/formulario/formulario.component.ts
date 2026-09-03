@@ -1,4 +1,4 @@
-import { Component, Inject, OnInit } from '@angular/core';
+import { Component, EventEmitter, Inject, Input, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { debounceTime } from 'rxjs';
@@ -50,8 +50,11 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
       <button type="button" class="paso-anterior" mat-stroked-button [disabled]="pasoActual === 0" (click)="retroceder()">
         <mat-icon>arrow_back</mat-icon> Anterior
       </button>
-      <button type="button" class="paso-siguiente" mat-raised-button color="primary" [disabled]="pasoActual === totalPasos - 1" (click)="avanzar()">
+      <button *ngIf="pasoActual < totalPasos - 1" type="button" class="paso-siguiente" mat-raised-button color="primary" (click)="avanzar()">
         Siguiente <mat-icon>arrow_forward</mat-icon>
+      </button>
+      <button *ngIf="pasoActual === totalPasos - 1" type="button" class="enviar-historial" mat-raised-button color="primary" (click)="enviarYVerHistorial()">
+        Enviar al Historial <mat-icon>send</mat-icon>
       </button>
       <span class="separador"></span>
       <button type="button" class="guardar-borrador" mat-icon-button (click)="guardarBorrador()" aria-label="Guardar borrador" title="Guardar borrador">
@@ -84,7 +87,7 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
     .layout { padding: 16px; padding-bottom: 88px; }
     .contenido { max-width: 900px; margin: 0 auto; }
     .barra-acciones { position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: white; border-top: 1px solid var(--umam-section-border, #b9def2); }
-    .paso-siguiente { min-width: 130px; }
+    .paso-siguiente, .enviar-historial { min-width: 130px; }
     .separador { flex: 1; }
     .estado-guardado { font-size: 0.8rem; color: #555; }
     .estado-guardado.error { color: #c0392b; font-weight: 600; }
@@ -96,6 +99,15 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
   `],
 })
 export class FormularioComponent implements OnInit {
+  /**
+   * Cuando App abre un trámite desde el Historial, lo pasa aquí en vez de dejar
+   * que ngOnInit cargue "el más reciente" de localStorage — ver ngOnInit.
+   */
+  @Input() registroInicial?: RegistroAtencionPrehospitalaria;
+
+  /** Se dispara al terminar "Enviar al Historial" — App usa esto para cambiar de vista. */
+  @Output() enviarAlHistorial = new EventEmitter<void>();
+
   secciones = SECCIONES;
   form: FormGroup;
   estadoGuardado = '';
@@ -123,6 +135,12 @@ export class FormularioComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    // Se abrió un trámite puntual desde el Historial: se usa ese registro tal
+    // cual, sin dejar que la carga de "el más reciente" de abajo lo pise.
+    if (this.registroInicial) {
+      this.cargarRegistro(this.registroInicial);
+      return;
+    }
     try {
       const existentes = await this.registroService.listar();
       // Solo reemplazamos this.form por el registro cargado si el usuario no ha
@@ -154,7 +172,17 @@ export class FormularioComponent implements OnInit {
    * localStorage a mano.
    */
   nuevoRegistro(): void {
-    this.registroActual = crearRegistroVacio();
+    this.cargarRegistro(crearRegistroVacio());
+  }
+
+  /**
+   * Reemplaza el formulario en edición por el registro dado — mismo mecanismo
+   * que "Nuevo registro" (id nuevo o no, formulario reconstruido desde cero,
+   * autosave vuelto a suscribir sobre el FormGroup nuevo), usado también para
+   * abrir un trámite puntual desde el Historial.
+   */
+  cargarRegistro(registro: RegistroAtencionPrehospitalaria): void {
+    this.registroActual = registro;
     this.form = construirFormularioRegistro(this.fb, this.registroActual);
     this.estadoGuardado = '';
     this.pasoActual = 0;
@@ -180,20 +208,36 @@ export class FormularioComponent implements OnInit {
   }
 
   guardarBorrador(): void {
+    this.guardar();
+  }
+
+  private async guardar(): Promise<void> {
     const registro = this.construirRegistroDesdeFormulario();
-    this.registroService.guardar(registro)
-      .then(() => {
-        this.estadoGuardado = `Guardado ${new Date().toLocaleTimeString()}`;
-      })
-      .catch((error) => {
-        console.error('Error al guardar el borrador', error);
-        this.estadoGuardado = 'Error al guardar';
-      });
+    try {
+      await this.registroService.guardar(registro);
+      this.estadoGuardado = `Guardado ${new Date().toLocaleTimeString()}`;
+    } catch (error) {
+      console.error('Error al guardar el borrador', error);
+      this.estadoGuardado = 'Error al guardar';
+    }
   }
 
   exportarPdf(): void {
     this.snapshotParaImpresion = this.form.getRawValue();
     window.print();
+  }
+
+  /**
+   * Botón del último paso del wizard: guarda el trámite, dispara la descarga
+   * del PDF (mismo window.print() de "Exportar PDF" — el usuario elige
+   * "Guardar como PDF" en el diálogo del navegador, igual que en el resto de
+   * la app) y le avisa a App que muestre el Historial, donde el trámite
+   * recién guardado ya va a aparecer.
+   */
+  async enviarYVerHistorial(): Promise<void> {
+    await this.guardar();
+    this.exportarPdf();
+    this.enviarAlHistorial.emit();
   }
 
   exportarExcel(): void {

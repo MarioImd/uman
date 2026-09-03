@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy } from '@angular/core';
+import { Component, ElementRef, Input, OnDestroy, ViewChild } from '@angular/core';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
@@ -136,19 +136,32 @@ function horaATexto(fecha: Date | null): string {
             <button type="button" class="quitar-imagen" (click)="quitarImagen(i)" aria-label="Quitar imagen">✕</button>
           </div>
         </div>
-        <div class="acciones-imagenes">
-          <button type="button" class="chip" (click)="entradaCamara.click()">📷 Tomar foto</button>
+        <!-- Vista previa en vivo de la cámara mientras está activa. -->
+        <div class="camara" *ngIf="mostrandoCamara">
+          <video #videoCamara autoplay playsinline muted></video>
+          <div class="camara-acciones">
+            <button type="button" class="chip chip-activo" (click)="capturarFoto()">📸 Capturar</button>
+            <button type="button" class="chip" (click)="cerrarCamara()">Cancelar</button>
+          </div>
+        </div>
+
+        <p class="error-camara" *ngIf="errorCamara">{{ errorCamara }}</p>
+
+        <div class="acciones-imagenes" *ngIf="!mostrandoCamara">
+          <button type="button" class="chip" (click)="abrirCamara()">📷 Tomar foto</button>
           <button type="button" class="chip" (click)="entradaArchivo.click()">🖼️ Subir imagen</button>
         </div>
         <!--
-          Dos <input type="file"> separados en vez de uno: el atributo "capture"
-          hace que el celular abra la cámara directo (sin pasar por la galería);
-          si el mismo input llevara "multiple" a la vez, algunos navegadores
-          ignoran "capture" y siempre abren la galería. El de subir archivo no
-          lleva "capture" (así el selector nativo ofrece galería/cámara/archivos
-          según el dispositivo) y sí acepta varias imágenes de una vez.
+          "Tomar foto" activa la cámara del dispositivo en vivo (getUserMedia)
+          en vez de delegar al selector nativo del sistema operativo — así el
+          usuario ve la vista previa y decide cuándo capturar sin salir de la
+          app. Si el navegador no soporta getUserMedia (o el contexto no es
+          seguro: ni HTTPS ni localhost), abrirCamara() recae en este input
+          oculto con "capture", que en celular sigue abriendo la cámara nativa.
+          El de subir archivo es independiente (galería/archivos, admite
+          varias imágenes a la vez).
         -->
-        <input #entradaCamara type="file" accept="image/*" capture="environment" hidden (change)="agregarImagenes($event)" />
+        <input #entradaCamaraFallback type="file" accept="image/*" capture="environment" hidden (change)="agregarImagenes($event)" />
         <input #entradaArchivo type="file" accept="image/*" multiple hidden (change)="agregarImagenes($event)" />
       </div>
 
@@ -182,6 +195,10 @@ function horaATexto(fecha: Date | null): string {
     }
     .grupo-imagenes { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
     .acciones-imagenes { display: flex; flex-wrap: wrap; gap: 8px; }
+    .camara { display: flex; flex-direction: column; gap: 6px; }
+    .camara video { width: 100%; max-width: 360px; max-height: 280px; border-radius: 8px; background: #000; object-fit: cover; }
+    .camara-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+    .error-camara { color: #c0392b; font-size: 0.85rem; margin: 0; }
     .miniaturas { display: flex; flex-wrap: wrap; gap: 8px; }
     .miniatura { position: relative; width: 72px; height: 72px; }
     .miniatura img { width: 100%; height: 100%; object-fit: cover; border-radius: 6px; border: 1px solid var(--umam-section-border, #b9def2); }
@@ -209,6 +226,13 @@ export class CampoFormularioComponent implements OnDestroy {
   controlFechaHora = new FormControl<Date | null>(null);
   private suscripcionFechaHora?: Subscription;
 
+  /** Vista previa de cámara en vivo para el tipo 'imagenes' (ver abrirCamara()). */
+  mostrandoCamara = false;
+  errorCamara = '';
+  @ViewChild('videoCamara') private videoCamaraRef?: ElementRef<HTMLVideoElement>;
+  @ViewChild('entradaCamaraFallback') private entradaCamaraFallbackRef!: ElementRef<HTMLInputElement>;
+  private streamCamara?: MediaStream;
+
   @Input() set campo(valor: CampoFormulario) {
     this._campo = valor;
     this.sincronizarFechaHora();
@@ -227,6 +251,7 @@ export class CampoFormularioComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.suscripcionFechaHora?.unsubscribe();
+    this.cerrarCamara();
   }
 
   private sincronizarFechaHora(): void {
@@ -296,5 +321,52 @@ export class CampoFormularioComponent implements OnDestroy {
     const valor = [...this.imagenes()];
     valor.splice(indice, 1);
     this.control.setValue(valor);
+  }
+
+  /**
+   * Activa la cámara del dispositivo en vivo y la muestra en un <video> dentro
+   * del propio campo. Si el navegador no soporta getUserMedia (o el contexto
+   * no es seguro — ni HTTPS ni localhost), o si el usuario niega el permiso,
+   * recae en el input con "capture", que en celular sigue abriendo la cámara
+   * nativa del sistema.
+   */
+  async abrirCamara(): Promise<void> {
+    this.errorCamara = '';
+    if (!navigator.mediaDevices?.getUserMedia) {
+      this.entradaCamaraFallbackRef?.nativeElement.click();
+      return;
+    }
+    try {
+      this.streamCamara = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      this.mostrandoCamara = true;
+      // El <video> recién aparece en el DOM al activar mostrandoCamara (*ngIf);
+      // se espera al siguiente tick para que @ViewChild ya lo haya capturado.
+      setTimeout(() => {
+        if (this.videoCamaraRef) {
+          this.videoCamaraRef.nativeElement.srcObject = this.streamCamara!;
+        }
+      });
+    } catch (error) {
+      console.error('No se pudo activar la cámara', error);
+      this.errorCamara = 'No se pudo activar la cámara. Revisa los permisos del navegador o usa "Subir imagen".';
+    }
+  }
+
+  /** Toma la imagen actual del <video> en vivo y la agrega como una imagen más. */
+  capturarFoto(): void {
+    const video = this.videoCamaraRef?.nativeElement;
+    if (!video) return;
+    const lienzo = document.createElement('canvas');
+    lienzo.width = video.videoWidth || 1;
+    lienzo.height = video.videoHeight || 1;
+    lienzo.getContext('2d')?.drawImage(video, 0, 0, lienzo.width, lienzo.height);
+    this.control.setValue([...this.imagenes(), lienzo.toDataURL('image/jpeg', 0.85)]);
+    this.cerrarCamara();
+  }
+
+  cerrarCamara(): void {
+    this.streamCamara?.getTracks().forEach(pista => pista.stop());
+    this.streamCamara = undefined;
+    this.mostrandoCamara = false;
   }
 }

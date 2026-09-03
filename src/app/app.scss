@@ -1,0 +1,27 @@
+.navegacion-vistas {
+  display: flex;
+  gap: 4px;
+  padding: 6px 10px 0;
+  background: #fff;
+  border-bottom: 1px solid var(--umam-section-border, #b9def2);
+}
+.pestana {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: none;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: #555;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pestana.activa {
+  color: var(--umam-header-bg, #1892d3);
+  border-bottom-color: var(--umam-header-bg, #1892d3);
+}
+@media print {
+  .navegacion-vistas { display: none !important; }
+}
