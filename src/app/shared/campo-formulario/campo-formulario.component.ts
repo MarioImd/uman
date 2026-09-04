@@ -187,6 +187,7 @@ function horaATexto(fecha: Date | null): string {
         ></canvas>
         <div class="acciones-firma">
           <button type="button" class="chip" (click)="limpiarFirma()">Borrar firma</button>
+          <span class="detector-puntero" *ngIf="tipoPuntero">{{ etiquetaPuntero() }}</span>
         </div>
       </div>
 
@@ -238,7 +239,8 @@ function horaATexto(fecha: Date | null): string {
       border: 1.5px dashed var(--umam-section-border, #b9def2); border-radius: 8px;
       background: #fff; touch-action: none; cursor: crosshair;
     }
-    .acciones-firma { display: flex; flex-wrap: wrap; gap: 8px; }
+    .acciones-firma { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .detector-puntero { font-size: 0.8rem; color: #2e7d32; font-weight: 600; }
   `],
 })
 export class CampoFormularioComponent implements AfterViewInit, OnDestroy {
@@ -269,6 +271,8 @@ export class CampoFormularioComponent implements AfterViewInit, OnDestroy {
   @ViewChild('lienzoFirma') private lienzoFirmaRef?: ElementRef<HTMLCanvasElement>;
   private dibujandoTrazo = false;
   private ultimoPunto?: { x: number; y: number };
+  /** Tipo de dispositivo del último trazo — confirma en pantalla que se detectó la tableta/lápiz. */
+  tipoPuntero: 'pen' | 'touch' | 'mouse' | null = null;
 
   @Input() set campo(valor: CampoFormulario) {
     this._campo = valor;
@@ -426,7 +430,18 @@ export class CampoFormularioComponent implements AfterViewInit, OnDestroy {
 
   iniciarTrazo(evento: PointerEvent): void {
     this.dibujandoTrazo = true;
+    this.tipoPuntero = (evento.pointerType as 'pen' | 'touch' | 'mouse') || 'mouse';
     this.ultimoPunto = this.puntoDelEvento(evento);
+    // setPointerCapture ata el resto del trazo a este lienzo aunque el puntero
+    // se mueva rápido y salga de sus límites a medio trazo — común en
+    // tabletas con lápiz óptico, donde el cursor puede "saltar" entre eventos.
+    // Puede rechazar el pointerId (p. ej. en pruebas con eventos sintéticos o
+    // en navegadores que no lo soportan del todo); no es crítico, se ignora.
+    try {
+      this.lienzoFirmaRef?.nativeElement.setPointerCapture?.(evento.pointerId);
+    } catch {
+      // sin captura, el trazo sigue funcionando igual mientras el puntero no salga del lienzo.
+    }
     evento.preventDefault();
   }
 
@@ -437,8 +452,13 @@ export class CampoFormularioComponent implements AfterViewInit, OnDestroy {
     if (!canvas || !contexto) return;
 
     const punto = this.puntoDelEvento(evento);
+    // Cuando el lápiz óptico reporta presión real, el trazo sale más grueso
+    // donde se presiona más fuerte — como con pluma en papel. El mouse/dedo
+    // sin sensor de presión reportan 0.5 mientras están presionados, así que
+    // igual sale un trazo de grosor constante y razonable.
+    const presion = evento.pressure > 0 ? evento.pressure : 0.5;
     contexto.strokeStyle = '#1a1a1a';
-    contexto.lineWidth = 2.2;
+    contexto.lineWidth = 1.2 + presion * 2.6;
     contexto.lineCap = 'round';
     contexto.lineJoin = 'round';
     contexto.beginPath();
@@ -463,6 +483,15 @@ export class CampoFormularioComponent implements AfterViewInit, OnDestroy {
     const contexto = canvas?.getContext('2d');
     contexto?.clearRect(0, 0, canvas!.width, canvas!.height);
     this.control.setValue('');
+    this.tipoPuntero = null;
+  }
+
+  etiquetaPuntero(): string {
+    switch (this.tipoPuntero) {
+      case 'pen': return '🖊️ Lápiz óptico / tableta detectada';
+      case 'touch': return '👆 Dedo detectado';
+      default: return '🖱️ Mouse detectado';
+    }
   }
 
   /** Convierte las coordenadas del puntero (en pantalla) a coordenadas del lienzo. */

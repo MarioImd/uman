@@ -327,6 +327,26 @@ describe('CampoFormularioComponent', () => {
     expect(control.value).toContain('data:image/png;base64');
   });
 
+  it('detecta el tipo de puntero (lápiz óptico de tableta, dedo o mouse) y lo muestra en pantalla', () => {
+    const campo: CampoFormulario = { clave: 'firmaQuienEntrega', etiqueta: 'Firma', tipo: 'firma' };
+    const control = new FormControl('');
+    fixture.componentInstance.campo = campo;
+    fixture.componentInstance.control = control;
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.detector-puntero')).toBeFalsy();
+
+    const lienzo: HTMLCanvasElement = fixture.nativeElement.querySelector('.lienzo-firma');
+    const rect = lienzo.getBoundingClientRect();
+    lienzo.dispatchEvent(new PointerEvent('pointerdown', { clientX: rect.left + 10, clientY: rect.top + 10, pointerType: 'pen', pressure: 0.8 }));
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.tipoPuntero).toBe('pen');
+    expect(fixture.nativeElement.querySelector('.detector-puntero').textContent).toContain('Lápiz óptico / tableta detectada');
+
+    lienzo.dispatchEvent(new PointerEvent('pointerup'));
+  });
+
   it('"Borrar firma" limpia el lienzo y vacía el control', () => {
     const campo: CampoFormulario = { clave: 'firmaQuienEntrega', etiqueta: 'Firma', tipo: 'firma' };
     const control = new FormControl('data:image/png;base64,ALGOYAFIRMADO');
