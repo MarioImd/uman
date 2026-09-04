@@ -1,4 +1,4 @@
-import { Component, ElementRef, Input, OnDestroy, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, Input, OnDestroy, ViewChild } from '@angular/core';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { Subscription } from 'rxjs';
@@ -165,6 +165,31 @@ function horaATexto(fecha: Date | null): string {
         <input #entradaArchivo type="file" accept="image/*" multiple hidden (change)="agregarImagenes($event)" />
       </div>
 
+      <!--
+        Firma dibujada con el dedo, mouse o lápiz óptico (Pointer Events cubre
+        los tres por igual). El lienzo mantiene su propio tamaño en píxeles
+        fijo (width/height) para que la imagen final salga nítida; se dibuja
+        a escala con getBoundingClientRect() para que el trazo quede alineado
+        aunque el lienzo se vea más angosto en pantallas chicas.
+      -->
+      <div *ngSwitchCase="'firma'" class="campo-firma">
+        <span class="grupo-titulo">{{ campo.etiqueta }}</span>
+        <canvas
+          #lienzoFirma
+          class="lienzo-firma"
+          width="360"
+          height="120"
+          (pointerdown)="iniciarTrazo($event)"
+          (pointermove)="continuarTrazo($event)"
+          (pointerup)="terminarTrazo()"
+          (pointerleave)="terminarTrazo()"
+          (pointercancel)="terminarTrazo()"
+        ></canvas>
+        <div class="acciones-firma">
+          <button type="button" class="chip" (click)="limpiarFirma()">Borrar firma</button>
+        </div>
+      </div>
+
     </div>
   `,
   styles: [`
@@ -207,9 +232,16 @@ function horaATexto(fecha: Date | null): string {
       border-radius: 50%; border: none; background: #c0392b; color: #fff;
       font-size: 11px; line-height: 1; cursor: pointer;
     }
+    .campo-firma { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+    .lienzo-firma {
+      width: 100%; max-width: 360px; height: 120px;
+      border: 1.5px dashed var(--umam-section-border, #b9def2); border-radius: 8px;
+      background: #fff; touch-action: none; cursor: crosshair;
+    }
+    .acciones-firma { display: flex; flex-wrap: wrap; gap: 8px; }
   `],
 })
-export class CampoFormularioComponent implements OnDestroy {
+export class CampoFormularioComponent implements AfterViewInit, OnDestroy {
   private _campo!: CampoFormulario;
   private _control!: FormControl;
 
@@ -233,6 +265,11 @@ export class CampoFormularioComponent implements OnDestroy {
   @ViewChild('entradaCamaraFallback') private entradaCamaraFallbackRef!: ElementRef<HTMLInputElement>;
   private streamCamara?: MediaStream;
 
+  /** Firma dibujada (tipo 'firma'): trazo en curso con dedo/mouse/lápiz óptico. */
+  @ViewChild('lienzoFirma') private lienzoFirmaRef?: ElementRef<HTMLCanvasElement>;
+  private dibujandoTrazo = false;
+  private ultimoPunto?: { x: number; y: number };
+
   @Input() set campo(valor: CampoFormulario) {
     this._campo = valor;
     this.sincronizarFechaHora();
@@ -247,6 +284,13 @@ export class CampoFormularioComponent implements OnDestroy {
   }
   get control(): FormControl {
     return this._control;
+  }
+
+  ngAfterViewInit(): void {
+    // Si ya había una firma guardada (se abrió un trámite existente para
+    // seguir editándolo), se precarga en el lienzo para que se vea "firmado"
+    // en vez de aparecer en blanco.
+    this.cargarFirmaGuardada();
   }
 
   ngOnDestroy(): void {
@@ -368,5 +412,66 @@ export class CampoFormularioComponent implements OnDestroy {
     this.streamCamara?.getTracks().forEach(pista => pista.stop());
     this.streamCamara = undefined;
     this.mostrandoCamara = false;
+  }
+
+  private cargarFirmaGuardada(): void {
+    const canvas = this.lienzoFirmaRef?.nativeElement;
+    const valor = this._control?.value;
+    if (!canvas || typeof valor !== 'string' || !valor) return;
+    const contexto = canvas.getContext('2d');
+    const imagen = new Image();
+    imagen.onload = () => contexto?.drawImage(imagen, 0, 0, canvas.width, canvas.height);
+    imagen.src = valor;
+  }
+
+  iniciarTrazo(evento: PointerEvent): void {
+    this.dibujandoTrazo = true;
+    this.ultimoPunto = this.puntoDelEvento(evento);
+    evento.preventDefault();
+  }
+
+  continuarTrazo(evento: PointerEvent): void {
+    if (!this.dibujandoTrazo || !this.ultimoPunto) return;
+    const canvas = this.lienzoFirmaRef?.nativeElement;
+    const contexto = canvas?.getContext('2d');
+    if (!canvas || !contexto) return;
+
+    const punto = this.puntoDelEvento(evento);
+    contexto.strokeStyle = '#1a1a1a';
+    contexto.lineWidth = 2.2;
+    contexto.lineCap = 'round';
+    contexto.lineJoin = 'round';
+    contexto.beginPath();
+    contexto.moveTo(this.ultimoPunto.x, this.ultimoPunto.y);
+    contexto.lineTo(punto.x, punto.y);
+    contexto.stroke();
+    this.ultimoPunto = punto;
+    // Evita que el navegador interprete el trazo como gesto de scroll/zoom en celular.
+    evento.preventDefault();
+  }
+
+  terminarTrazo(): void {
+    if (!this.dibujandoTrazo) return;
+    this.dibujandoTrazo = false;
+    this.ultimoPunto = undefined;
+    const canvas = this.lienzoFirmaRef?.nativeElement;
+    if (canvas) this.control.setValue(canvas.toDataURL('image/png'));
+  }
+
+  limpiarFirma(): void {
+    const canvas = this.lienzoFirmaRef?.nativeElement;
+    const contexto = canvas?.getContext('2d');
+    contexto?.clearRect(0, 0, canvas!.width, canvas!.height);
+    this.control.setValue('');
+  }
+
+  /** Convierte las coordenadas del puntero (en pantalla) a coordenadas del lienzo. */
+  private puntoDelEvento(evento: PointerEvent): { x: number; y: number } {
+    const canvas = this.lienzoFirmaRef!.nativeElement;
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: ((evento.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((evento.clientY - rect.top) / rect.height) * canvas.height,
+    };
   }
 }

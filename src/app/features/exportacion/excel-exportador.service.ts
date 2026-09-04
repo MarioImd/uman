@@ -26,14 +26,16 @@ export class ExcelExportadorService {
       const valoresSeccion = (registro as unknown as Record<string, unknown>)[seccion.clave] as Record<string, unknown> | undefined;
       for (const campo of seccion.campos) {
         const valorCrudo = valoresSeccion?.[campo.clave];
-        // Las imágenes se guardan como data URIs base64: no tiene sentido volcarlas
-        // en una celda, así que solo dejamos constancia de cuántas se adjuntaron
-        // (el contenido se ve en el PDF).
+        // Las imágenes y las firmas dibujadas se guardan como data URIs base64:
+        // no tiene sentido volcarlas en una celda, así que solo dejamos
+        // constancia de si hay algo adjunto/firmado (el contenido se ve en el PDF).
         const valor = campo.tipo === 'imagenes'
           ? (Array.isArray(valorCrudo) && valorCrudo.length > 0 ? `${valorCrudo.length} imagen(es) adjunta(s) — ver PDF` : '')
-          : typeof valorCrudo === 'boolean'
-            ? (valorCrudo ? 'Sí' : 'No')
-            : Array.isArray(valorCrudo) ? valorCrudo.join(', ') : (valorCrudo ?? '');
+          : campo.tipo === 'firma'
+            ? (typeof valorCrudo === 'string' && valorCrudo ? 'Firmado — ver PDF' : 'Sin firmar')
+            : typeof valorCrudo === 'boolean'
+              ? (valorCrudo ? 'Sí' : 'No')
+              : Array.isArray(valorCrudo) ? valorCrudo.join(', ') : (valorCrudo ?? '');
         hoja.addRow({ campo: campo.etiqueta, valor });
       }
 

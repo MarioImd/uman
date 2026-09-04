@@ -721,10 +721,12 @@ import { SECCIONES } from '../../../core/data/secciones.data';
             <div class="caja-sello">{{ v('hospitalReceptor', 'aceptacionHospitalReceptor') }}</div>
             <div class="firmas">
               <div class="firma">
+                <img *ngIf="v('hospitalReceptor', 'firmaQuienEntrega')" [src]="v('hospitalReceptor', 'firmaQuienEntrega')" class="imagen-firma" alt="" />
                 <span class="linea">{{ v('hospitalReceptor', 'nombreQuienEntrega') }}</span>
                 <span class="pie-firma">NOMBRE Y FIRMA DE QUIEN ENTREGA EL PACIENTE</span>
               </div>
               <div class="firma">
+                <img *ngIf="v('hospitalReceptor', 'firmaQuienRecibe')" [src]="v('hospitalReceptor', 'firmaQuienRecibe')" class="imagen-firma" alt="" />
                 <span class="linea">{{ v('hospitalReceptor', 'nombreQuienRecibe') }}</span>
                 <span class="pie-firma">NOMBRE Y FIRMA DE PERSONA QUE RECIBE EL PACIENTE</span>
               </div>
@@ -1040,6 +1042,7 @@ $tinta: #1a1a1a;
   display: flex;
   flex-direction: column;
   align-items: center;
+  .imagen-firma { max-width: 100%; max-height: 22px; object-fit: contain; }
   .linea { width: 100%; min-height: 10px; text-align: center; }
   .pie-firma { font-size: 5.5px; margin-top: 1px; }
   &.centrada { margin-top: 8px; }

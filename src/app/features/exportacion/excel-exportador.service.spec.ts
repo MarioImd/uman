@@ -57,4 +57,17 @@ describe('ExcelExportadorService', () => {
     const fila = hoja!.getRows(1, hoja!.rowCount)!.find(f => f.getCell(1).text === 'Imágenes de EKG, Rx y/o laboratorios');
     expect(fila!.getCell(2).text).toContain('2 imagen(es) adjunta(s)');
   });
+
+  it('un campo tipo "firma" se resume como "Firmado"/"Sin firmar" en vez de volcar el base64', async () => {
+    const registro = crearRegistroVacio();
+    (registro as any).hospitalReceptor.firmaQuienEntrega = 'data:image/png;base64,FIRMAENTREGA';
+    const libro = await servicio.construirLibro(registro as any);
+
+    const hoja = libro.getWorksheet('XVI. Hospital Receptor');
+    const filas = hoja!.getRows(1, hoja!.rowCount)!;
+    const filaFirmada = filas.find(f => f.getCell(1).text === 'Firma de quien entrega al paciente');
+    const filaSinFirmar = filas.find(f => f.getCell(1).text === 'Firma de persona que recibe al paciente');
+    expect(filaFirmada!.getCell(2).text).toBe('Firmado — ver PDF');
+    expect(filaSinFirmar!.getCell(2).text).toBe('Sin firmar');
+  });
 });

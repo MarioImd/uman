@@ -276,8 +276,10 @@ export const SECCIONES: SeccionFormulario[] = [
     titulo: 'XVI. Hospital Receptor',
     campos: [
       { clave: 'aceptacionHospitalReceptor', etiqueta: 'Aceptación de hospital receptor', tipo: 'textarea' },
-      { clave: 'nombreQuienEntrega', etiqueta: 'Nombre y firma de quien entrega al paciente', tipo: 'texto' },
-      { clave: 'nombreQuienRecibe', etiqueta: 'Nombre y firma de persona que recibe al paciente', tipo: 'texto' },
+      { clave: 'nombreQuienEntrega', etiqueta: 'Nombre de quien entrega al paciente', tipo: 'texto' },
+      { clave: 'firmaQuienEntrega', etiqueta: 'Firma de quien entrega al paciente', tipo: 'firma' },
+      { clave: 'nombreQuienRecibe', etiqueta: 'Nombre de persona que recibe al paciente', tipo: 'texto' },
+      { clave: 'firmaQuienRecibe', etiqueta: 'Firma de persona que recibe al paciente', tipo: 'firma' },
       { clave: 'imagenesEkgRxLaboratorios', etiqueta: 'Imágenes de EKG, Rx y/o laboratorios', tipo: 'imagenes' },
     ],
   },

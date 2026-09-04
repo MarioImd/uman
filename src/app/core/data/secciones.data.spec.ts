@@ -59,6 +59,16 @@ describe('SECCIONES', () => {
     expect(campo.tipo).toBe('imagenes');
   });
 
+  it('hospitalReceptor trae firma dibujada (pluma digital / dedo) además del nombre de quien entrega y quien recibe', () => {
+    const seccion = SECCIONES.find(s => s.clave === 'hospitalReceptor')!;
+    const firmaEntrega = seccion.campos.find(c => c.clave === 'firmaQuienEntrega')!;
+    const firmaRecibe = seccion.campos.find(c => c.clave === 'firmaQuienRecibe')!;
+    expect(firmaEntrega.tipo).toBe('firma');
+    expect(firmaRecibe.tipo).toBe('firma');
+    expect(seccion.campos.find(c => c.clave === 'nombreQuienEntrega')!.tipo).toBe('texto');
+    expect(seccion.campos.find(c => c.clave === 'nombreQuienRecibe')!.tipo).toBe('texto');
+  });
+
   it('consentimientoInformado trae los campos de firma', () => {
     const seccion = SECCIONES.find(s => s.clave === 'consentimientoInformado')!;
     expect(seccion.campos.map(c => c.clave)).toEqual([

@@ -122,6 +122,18 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
       expect((imagenes[0] as HTMLImageElement).src).toContain('data:image/png;base64,AAA');
     });
 
+    it('renderiza la firma dibujada de quien entrega/recibe cuando existe, y no un <img> vacío cuando no se firmó', () => {
+      const el = render({
+        hospitalReceptor: {
+          nombreQuienEntrega: 'TUM Pedro', firmaQuienEntrega: 'data:image/png;base64,FIRMAENTREGA',
+          nombreQuienRecibe: 'Enf. Ana',
+        },
+      });
+      const firmas = el.querySelectorAll('.firma .imagen-firma');
+      expect(firmas.length).toBe(1);
+      expect((firmas[0] as HTMLImageElement).src).toContain('data:image/png;base64,FIRMAENTREGA');
+    });
+
     it('renderiza el pie con la dirección y los teléfonos', () => {
       const el = render({});
       const pie = el.querySelector('.pie')!;

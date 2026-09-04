@@ -306,4 +306,49 @@ describe('CampoFormularioComponent', () => {
 
     expect(fixture.componentInstance.controlFechaHora.value).toBeNull();
   });
+
+  it('tipo "firma" permite dibujar con el dedo/mouse/lápiz óptico (Pointer Events) y guarda el trazo como PNG al soltar', () => {
+    const campo: CampoFormulario = { clave: 'firmaQuienEntrega', etiqueta: 'Firma de quien entrega al paciente', tipo: 'firma' };
+    const control = new FormControl('');
+    fixture.componentInstance.campo = campo;
+    fixture.componentInstance.control = control;
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('Firma de quien entrega al paciente');
+    const lienzo: HTMLCanvasElement = fixture.nativeElement.querySelector('.lienzo-firma');
+    expect(lienzo).toBeTruthy();
+    expect(control.value).toBe('');
+
+    const rect = lienzo.getBoundingClientRect();
+    lienzo.dispatchEvent(new PointerEvent('pointerdown', { clientX: rect.left + 10, clientY: rect.top + 10 }));
+    lienzo.dispatchEvent(new PointerEvent('pointermove', { clientX: rect.left + 50, clientY: rect.top + 50 }));
+    lienzo.dispatchEvent(new PointerEvent('pointerup'));
+
+    expect(control.value).toContain('data:image/png;base64');
+  });
+
+  it('"Borrar firma" limpia el lienzo y vacía el control', () => {
+    const campo: CampoFormulario = { clave: 'firmaQuienEntrega', etiqueta: 'Firma', tipo: 'firma' };
+    const control = new FormControl('data:image/png;base64,ALGOYAFIRMADO');
+    fixture.componentInstance.campo = campo;
+    fixture.componentInstance.control = control;
+    fixture.detectChanges();
+
+    const boton: HTMLButtonElement = fixture.nativeElement.querySelector('.acciones-firma button');
+    expect(boton.textContent).toContain('Borrar firma');
+    boton.click();
+
+    expect(control.value).toBe('');
+  });
+
+  it('si el control ya trae una firma guardada, no la borra ni la modifica al inicializar el lienzo', () => {
+    const campo: CampoFormulario = { clave: 'firmaQuienEntrega', etiqueta: 'Firma', tipo: 'firma' };
+    const firmaGuardada = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+    const control = new FormControl(firmaGuardada);
+    fixture.componentInstance.campo = campo;
+    fixture.componentInstance.control = control;
+
+    expect(() => fixture.detectChanges()).not.toThrow();
+    expect(control.value).toBe(firmaGuardada);
+  });
 });

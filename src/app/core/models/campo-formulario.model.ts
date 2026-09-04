@@ -8,7 +8,8 @@ export type TipoCampo =
   | 'checkbox-grupo'
   | 'radio-grupo'
   | 'select'
-  | 'imagenes';
+  | 'imagenes'
+  | 'firma';
 
 export interface CampoFormulario {
   clave: string;
