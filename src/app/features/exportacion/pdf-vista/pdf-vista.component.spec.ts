@@ -105,6 +105,18 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
       expect(el.textContent).toContain('Ana López');
     });
 
+    it('renderiza la firma dibujada del paciente y del testigo en la negativa de traslado', () => {
+      const el = render({
+        traslado: {
+          nombrePaciente: 'Juan Pérez', firmaPaciente: 'data:image/png;base64,FIRMAPACIENTE',
+          nombreTestigo: 'Ana López',
+        },
+      });
+      const firmas = el.querySelectorAll('.firma .imagen-firma');
+      expect(firmas.length).toBe(1);
+      expect((firmas[0] as HTMLImageElement).src).toContain('data:image/png;base64,FIRMAPACIENTE');
+    });
+
     it('la tabla de vehículos involucrados siempre tiene 4 filas', () => {
       const el = render({ vehiculosInvolucrados: [{ tipoMarca: 'Nissan Tsuru', placas: 'ABC-123' }] });
       const filas = el.querySelectorAll('.vehiculos tbody tr');
@@ -173,6 +185,24 @@ describe('PdfVistaComponent (réplica de la hoja física)', () => {
       expect(pagina2.textContent).toContain('NOMBRE Y FIRMA DEL PACIENTE');
       expect(pagina2.textContent).toContain('NOMBRE Y FIRMA DEL FAMILIAR O RESPONSABLE');
       expect(pagina2.textContent).toContain('NOMBRE Y FIRMA DEL PARAMÉDICO');
+    });
+
+    it('renderiza las firmas dibujadas del paciente, responsable y paramédico en consentimiento informado', () => {
+      const el = render({
+        consentimientoInformado: {
+          firmaPacienteConsentimiento: 'data:image/png;base64,FIRMAPACIENTE',
+          firmaResponsableConsentimiento: 'data:image/png;base64,FIRMARESPONSABLE',
+          firmaParamedicoConsentimiento: 'data:image/png;base64,FIRMAPARAMEDICO',
+        },
+      });
+      const pagina2 = el.querySelector('.pagina-2')!;
+      const firmas = Array.from(pagina2.querySelectorAll('.firma .imagen-firma')) as HTMLImageElement[];
+      expect(firmas.length).toBe(3);
+      expect(firmas.map(f => f.src)).toEqual([
+        jasmine.stringContaining('FIRMAPACIENTE'),
+        jasmine.stringContaining('FIRMARESPONSABLE'),
+        jasmine.stringContaining('FIRMAPARAMEDICO'),
+      ]);
     });
   });
 });

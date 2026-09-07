@@ -72,8 +72,19 @@ describe('SECCIONES', () => {
   it('consentimientoInformado trae los campos de firma', () => {
     const seccion = SECCIONES.find(s => s.clave === 'consentimientoInformado')!;
     expect(seccion.campos.map(c => c.clave)).toEqual([
-      'nombrePacienteConsentimiento', 'nombreResponsableConsentimiento', 'nombreParamedicoConsentimiento',
+      'nombrePacienteConsentimiento', 'firmaPacienteConsentimiento',
+      'nombreResponsableConsentimiento', 'firmaResponsableConsentimiento',
+      'nombreParamedicoConsentimiento', 'firmaParamedicoConsentimiento',
     ]);
+    expect(seccion.campos.find(c => c.clave === 'firmaPacienteConsentimiento')!.tipo).toBe('firma');
+    expect(seccion.campos.find(c => c.clave === 'firmaResponsableConsentimiento')!.tipo).toBe('firma');
+    expect(seccion.campos.find(c => c.clave === 'firmaParamedicoConsentimiento')!.tipo).toBe('firma');
+  });
+
+  it('traslado trae firma dibujada para quien firma por el paciente y para el testigo', () => {
+    const seccion = SECCIONES.find(s => s.clave === 'traslado')!;
+    expect(seccion.campos.find(c => c.clave === 'firmaPaciente')!.tipo).toBe('firma');
+    expect(seccion.campos.find(c => c.clave === 'firmaTestigo')!.tipo).toBe('firma');
   });
 
   it('datosServicio ya no tiene hora de llamada, calle ni entre calles, y sí responsable de entrega', () => {

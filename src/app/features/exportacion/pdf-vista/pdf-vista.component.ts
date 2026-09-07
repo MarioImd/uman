@@ -634,10 +634,12 @@ import { SECCIONES } from '../../../core/data/secciones.data';
               </p>
               <div class="firmas">
                 <div class="firma">
+                  <img *ngIf="v('traslado', 'firmaPaciente')" [src]="v('traslado', 'firmaPaciente')" class="imagen-firma" alt="" />
                   <span class="linea">{{ v('traslado', 'nombrePaciente') }}</span>
                   <span class="pie-firma">Nombre y firma del paciente</span>
                 </div>
                 <div class="firma">
+                  <img *ngIf="v('traslado', 'firmaTestigo')" [src]="v('traslado', 'firmaTestigo')" class="imagen-firma" alt="" />
                   <span class="linea">{{ v('traslado', 'nombreTestigo') }}</span>
                   <span class="pie-firma">Nombre y firma del testigo</span>
                 </div>
@@ -751,14 +753,17 @@ import { SECCIONES } from '../../../core/data/secciones.data';
             </p>
             <div class="firmas">
               <div class="firma">
+                <img *ngIf="v('consentimientoInformado', 'firmaPacienteConsentimiento')" [src]="v('consentimientoInformado', 'firmaPacienteConsentimiento')" class="imagen-firma" alt="" />
                 <span class="linea">{{ v('consentimientoInformado', 'nombrePacienteConsentimiento') }}</span>
                 <span class="pie-firma">NOMBRE Y FIRMA DEL PACIENTE</span>
               </div>
               <div class="firma">
+                <img *ngIf="v('consentimientoInformado', 'firmaResponsableConsentimiento')" [src]="v('consentimientoInformado', 'firmaResponsableConsentimiento')" class="imagen-firma" alt="" />
                 <span class="linea">{{ v('consentimientoInformado', 'nombreResponsableConsentimiento') }}</span>
                 <span class="pie-firma">NOMBRE Y FIRMA DEL FAMILIAR O RESPONSABLE</span>
               </div>
               <div class="firma">
+                <img *ngIf="v('consentimientoInformado', 'firmaParamedicoConsentimiento')" [src]="v('consentimientoInformado', 'firmaParamedicoConsentimiento')" class="imagen-firma" alt="" />
                 <span class="linea">{{ v('consentimientoInformado', 'nombreParamedicoConsentimiento') }}</span>
                 <span class="pie-firma">NOMBRE Y FIRMA DEL PARAMÉDICO</span>
               </div>

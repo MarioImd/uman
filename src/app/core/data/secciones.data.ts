@@ -236,7 +236,9 @@ export const SECCIONES: SeccionFormulario[] = [
       { clave: 'prioridadTraslado', etiqueta: 'Prioridad de traslado', tipo: 'radio-grupo', opciones: ['Rojo', 'Amarillo', 'Verde', 'Negro'] },
       { clave: 'negativaAtencion', etiqueta: 'Negativa a recibir atención / ser trasladado (eximente de responsabilidad)', tipo: 'checkbox' },
       { clave: 'nombrePaciente', etiqueta: 'Nombre de quien firma por el paciente', tipo: 'texto' },
+      { clave: 'firmaPaciente', etiqueta: 'Firma de quien firma por el paciente', tipo: 'firma' },
       { clave: 'nombreTestigo', etiqueta: 'Nombre del testigo', tipo: 'texto' },
+      { clave: 'firmaTestigo', etiqueta: 'Firma del testigo', tipo: 'firma' },
     ],
   },
   {
@@ -288,8 +290,11 @@ export const SECCIONES: SeccionFormulario[] = [
     titulo: 'XVII. Consentimiento Informado',
     campos: [
       { clave: 'nombrePacienteConsentimiento', etiqueta: 'Nombre y firma del paciente', tipo: 'texto' },
+      { clave: 'firmaPacienteConsentimiento', etiqueta: 'Firma del paciente', tipo: 'firma' },
       { clave: 'nombreResponsableConsentimiento', etiqueta: 'Nombre y firma del familiar o responsable', tipo: 'texto' },
+      { clave: 'firmaResponsableConsentimiento', etiqueta: 'Firma del familiar o responsable', tipo: 'firma' },
       { clave: 'nombreParamedicoConsentimiento', etiqueta: 'Nombre y firma del paramédico', tipo: 'texto' },
+      { clave: 'firmaParamedicoConsentimiento', etiqueta: 'Firma del paramédico', tipo: 'firma' },
     ],
   },
 ];
