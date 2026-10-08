@@ -36,6 +36,39 @@ function textoAHora(valor: unknown): Date | null {
   return fecha;
 }
 
+/** Caracteres que se eliminan al escribir en un campo de texto con `formato`. */
+const PATRONES_NO_PERMITIDOS: Record<string, RegExp> = {
+  // Letras (incluye acentos, ü y ñ), espacios y la puntuación típica de nombres:
+  // "Ma. José Pérez-López", "Juan, Ana" (varios prestadores).
+  letras: /[^A-Za-zÁÉÍÓÚÜÑáéíóúüñ\s.,'-]/g,
+  digitos: /\D/g,
+};
+
+/** Lado mayor máximo (px) de las fotos adjuntas: suficiente para leer un EKG y mucho más liviano. */
+const LADO_MAXIMO_IMAGEN = 1600;
+
+/**
+ * Reduce una imagen (data URL) a LADO_MAXIMO_IMAGEN y la recomprime en JPEG.
+ * Una foto de celular pesa 3–8 MB; en base64 dentro del registro hacía muy
+ * lento cada autoguardado y podía rebasar el límite del servidor. Si la
+ * imagen no se puede decodificar, se deja tal cual.
+ */
+function reducirImagen(dataUrl: string): Promise<string> {
+  return new Promise(resolve => {
+    const imagen = new Image();
+    imagen.onload = () => {
+      const escala = Math.min(1, LADO_MAXIMO_IMAGEN / Math.max(imagen.width, imagen.height));
+      const lienzo = document.createElement('canvas');
+      lienzo.width = Math.max(1, Math.round(imagen.width * escala));
+      lienzo.height = Math.max(1, Math.round(imagen.height * escala));
+      lienzo.getContext('2d')?.drawImage(imagen, 0, 0, lienzo.width, lienzo.height);
+      resolve(lienzo.toDataURL('image/jpeg', 0.82));
+    };
+    imagen.onerror = () => resolve(dataUrl);
+    imagen.src = dataUrl;
+  });
+}
+
 /** Date -> 'HH:mm'. */
 function horaATexto(fecha: Date | null): string {
   if (!fecha) return '';
@@ -54,15 +87,44 @@ function horaATexto(fecha: Date | null): string {
   template: `
     <div class="campo" [ngSwitch]="campo.tipo">
 
+      <!--
+        Texto: si el campo tiene formato ('letras' o 'digitos'), limpiarTexto()
+        quita al vuelo lo que no corresponde (también si se pega texto).
+        En celular, inputmode abre el teclado adecuado (numérico para dígitos).
+      -->
       <mat-form-field *ngSwitchCase="'texto'" appearance="outline" class="campo-ancho-completo">
         <mat-label>{{ campo.etiqueta }}</mat-label>
-        <input matInput type="text" [formControl]="control" />
+        <input
+          matInput
+          type="text"
+          [attr.inputmode]="campo.formato === 'digitos' ? 'numeric' : null"
+          [attr.autocapitalize]="campo.formato === 'letras' ? 'words' : null"
+          [attr.maxlength]="campo.maxLongitud ?? null"
+          [formControl]="control"
+          (input)="limpiarTexto($event)" />
+        <mat-hint *ngIf="campo.formato === 'digitos'">Solo números{{ campo.maxLongitud ? ' (' + campo.maxLongitud + ' dígitos)' : '' }}</mat-hint>
       </mat-form-field>
 
+      <!--
+        Número: bloquea las teclas que <input type="number"> sí acepta pero no
+        tienen sentido aquí (e, +, -, y punto/coma si el campo es entero).
+        Si el valor queda fuera de [min, max] el campo se pone en rojo.
+      -->
       <mat-form-field *ngSwitchCase="'numero'" appearance="outline" class="campo-ancho-medio">
         <mat-label>{{ campo.etiqueta }}</mat-label>
-        <input matInput type="number" inputmode="decimal" [formControl]="control" />
+        <input
+          matInput
+          type="number"
+          [attr.inputmode]="campo.entero ? 'numeric' : 'decimal'"
+          [attr.min]="campo.min ?? null"
+          [attr.max]="campo.max ?? null"
+          [attr.step]="campo.entero ? 1 : 'any'"
+          [formControl]="control"
+          (keydown)="bloquearTeclasNumero($event)" />
         <span matTextSuffix *ngIf="campo.sufijo">{{ campo.sufijo }}</span>
+        <mat-error *ngIf="control.hasError('min') || control.hasError('max')">
+          Debe estar entre {{ campo.min }} y {{ campo.max }}
+        </mat-error>
       </mat-form-field>
 
       <mat-form-field *ngSwitchCase="'fecha'" appearance="outline" class="campo-ancho-medio">
@@ -197,7 +259,7 @@ function horaATexto(fecha: Date | null): string {
     .campo { margin-bottom: 4px; }
     .campo-ancho-completo, .campo-ancho-medio { width: 100%; }
     .grupo-opciones { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-    .grupo-titulo { font-weight: 600; font-size: 0.85rem; color: var(--umam-header-bg, #1892d3); text-transform: uppercase; letter-spacing: 0.02em; }
+    .grupo-titulo { font-weight: 700; font-size: 0.8rem; color: var(--umam-header-oscuro, #0f6fa8); text-transform: uppercase; letter-spacing: 0.04em; }
     .chips { display: flex; flex-wrap: wrap; gap: 8px; }
     .chip {
       min-height: 44px;
@@ -205,20 +267,25 @@ function horaATexto(fecha: Date | null): string {
       border: 1.5px solid var(--umam-section-border, #b9def2);
       border-radius: 999px;
       background: #fff;
-      color: #333;
+      color: var(--umam-texto-fuerte, #333);
       font-size: 0.9rem;
       font-family: inherit;
       cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
       -webkit-tap-highlight-color: transparent;
     }
+    .chip:hover { border-color: var(--umam-header-bg, #1892d3); }
     .chip:active { background: var(--umam-section-bg, #dbeef9); }
+    /* Opción marcada: relleno azul + palomita para que se distinga de un vistazo. */
     .chip-activo {
       background: var(--umam-header-bg, #1892d3);
       border-color: var(--umam-header-bg, #1892d3);
       color: #fff;
       font-weight: 600;
+      box-shadow: 0 2px 6px rgba(24, 146, 211, 0.35);
     }
+    .chip-activo::before { content: '✓ '; }
+    .camara-acciones .chip-activo::before { content: none; }
     .grupo-imagenes { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
     .acciones-imagenes { display: flex; flex-wrap: wrap; gap: 8px; }
     .camara { display: flex; flex-direction: column; gap: 6px; }
@@ -342,23 +409,46 @@ export class CampoFormularioComponent implements AfterViewInit, OnDestroy {
     this.control.setValue(this.control.value !== true);
   }
 
+  /**
+   * Quita los caracteres que no corresponden al formato del campo mientras
+   * se escribe o se pega texto. Se reescribe también el <input> para que el
+   * carácter rechazado ni siquiera llegue a verse.
+   */
+  limpiarTexto(evento: Event): void {
+    const patron = this.campo.formato ? PATRONES_NO_PERMITIDOS[this.campo.formato] : undefined;
+    if (!patron) return;
+    const input = evento.target as HTMLInputElement;
+    const limpio = input.value.replace(patron, '');
+    if (limpio !== input.value) {
+      input.value = limpio;
+      this.control.setValue(limpio);
+    }
+  }
+
+  /** Evita escribir notación científica (e), signos y, en campos enteros, decimales. */
+  bloquearTeclasNumero(evento: KeyboardEvent): void {
+    const bloqueadas = this.campo.entero ? ['e', 'E', '+', '-', '.', ','] : ['e', 'E', '+', '-'];
+    if (bloqueadas.includes(evento.key)) evento.preventDefault();
+  }
+
   imagenes(): string[] {
     return (this.control.value ?? []) as string[];
   }
 
   /**
-   * Convierte cada archivo elegido a un data URI base64 y lo agrega al arreglo
-   * del control. Se guarda como base64 (no como File) porque todo el registro
-   * viaja tal cual a localStorage vía JSON.stringify — un File no sobrevive
-   * esa serialización.
+   * Convierte cada archivo elegido a un data URI base64 (reducido con
+   * reducirImagen) y lo agrega al arreglo del control. Se guarda como base64
+   * (no como File) porque todo el registro viaja como JSON al servidor — un
+   * File no sobrevive esa serialización.
    */
   agregarImagenes(evento: Event): void {
     const input = evento.target as HTMLInputElement;
     const archivos = Array.from(input.files ?? []);
     for (const archivo of archivos) {
       const lector = new FileReader();
-      lector.onload = () => {
-        this.control.setValue([...this.imagenes(), String(lector.result)]);
+      lector.onload = async () => {
+        const reducida = await reducirImagen(String(lector.result));
+        this.control.setValue([...this.imagenes(), reducida]);
       };
       lector.readAsDataURL(archivo);
     }
@@ -404,11 +494,15 @@ export class CampoFormularioComponent implements AfterViewInit, OnDestroy {
   capturarFoto(): void {
     const video = this.videoCamaraRef?.nativeElement;
     if (!video) return;
+    // Se captura ya reducida a LADO_MAXIMO_IMAGEN (misma razón que reducirImagen).
+    const ancho = video.videoWidth || 1;
+    const alto = video.videoHeight || 1;
+    const escala = Math.min(1, LADO_MAXIMO_IMAGEN / Math.max(ancho, alto));
     const lienzo = document.createElement('canvas');
-    lienzo.width = video.videoWidth || 1;
-    lienzo.height = video.videoHeight || 1;
+    lienzo.width = Math.round(ancho * escala);
+    lienzo.height = Math.round(alto * escala);
     lienzo.getContext('2d')?.drawImage(video, 0, 0, lienzo.width, lienzo.height);
-    this.control.setValue([...this.imagenes(), lienzo.toDataURL('image/jpeg', 0.85)]);
+    this.control.setValue([...this.imagenes(), lienzo.toDataURL('image/jpeg', 0.82)]);
     this.cerrarCamara();
   }
 

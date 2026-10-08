@@ -1,6 +1,20 @@
-import { FormArray, FormBuilder, FormGroup } from '@angular/forms';
+import { FormBuilder, FormGroup, ValidatorFn, Validators } from '@angular/forms';
 import { SECCIONES } from '../data/secciones.data';
+import { CampoFormulario } from '../models/campo-formulario.model';
 import { RegistroAtencionPrehospitalaria } from '../models/registro.model';
+
+/**
+ * Validadores de rango para campos numéricos (min/max definidos en
+ * secciones.data.ts). Un valor fuera de rango no se bloquea — el registro es
+ * un borrador y se sigue autoguardando —, pero el campo se marca en rojo con
+ * un mensaje para que el paramédico lo revise.
+ */
+function validadoresDe(campo: CampoFormulario): ValidatorFn[] {
+  const validadores: ValidatorFn[] = [];
+  if (campo.min !== undefined) validadores.push(Validators.min(campo.min));
+  if (campo.max !== undefined) validadores.push(Validators.max(campo.max));
+  return validadores;
+}
 
 export function construirFormularioRegistro(
   fb: FormBuilder,
@@ -24,15 +38,13 @@ export function construirFormularioRegistro(
         : campo.tipo === 'checkbox-grupo' || campo.tipo === 'imagenes'
           ? []
           : '';
-      controlesSeccion[campo.clave] = [valoresSeccion?.[campo.clave] ?? valorPorDefecto];
+      controlesSeccion[campo.clave] = [valoresSeccion?.[campo.clave] ?? valorPorDefecto, validadoresDe(campo)];
     }
     grupo[seccion.clave] = fb.group(controlesSeccion);
 
     for (const tabla of seccion.tablas ?? []) {
       const filasGuardadas = (registro as unknown as Record<string, unknown>)[tabla.clave] as Record<string, unknown>[] | undefined ?? [];
-      const filas = filasGuardadas.map(fila =>
-        fb.group(Object.fromEntries(tabla.columnas.map(c => [c.clave, [fila[c.clave] ?? '']]))),
-      );
+      const filas = filasGuardadas.map(fila => nuevaFilaTabla(fb, tabla.columnas, fila));
       grupo[tabla.clave] = fb.array(filas);
     }
   }
@@ -40,6 +52,11 @@ export function construirFormularioRegistro(
   return fb.group(grupo);
 }
 
-export function nuevaFilaTabla(fb: FormBuilder, columnas: { clave: string }[]): FormGroup {
-  return fb.group(Object.fromEntries(columnas.map(c => [c.clave, ['']])));
+/** Una fila de tabla repetible (vacía, o con los valores guardados de `fila`). */
+export function nuevaFilaTabla(
+  fb: FormBuilder,
+  columnas: CampoFormulario[],
+  fila: Record<string, unknown> = {},
+): FormGroup {
+  return fb.group(Object.fromEntries(columnas.map(c => [c.clave, [fila[c.clave] ?? '', validadoresDe(c)]])));
 }

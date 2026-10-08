@@ -71,3 +71,15 @@ describe('ExcelExportadorService', () => {
     expect(filaSinFirmar!.getCell(2).text).toBe('Sin firmar');
   });
 });
+
+describe('ExcelExportadorService — Datos Generales', () => {
+  it('llena la hoja "I. Datos Generales" con folio/estado/ciudad de la raíz del registro (registros leídos del servidor)', async () => {
+    const registro = { ...crearRegistroVacio(), folio: 'F-77', estado: 'Chihuahua', ciudad: 'Juárez' };
+    const libro = await new ExcelExportadorService().construirLibro(registro);
+    const hoja = libro.getWorksheet('I. Datos Generales')!;
+    const valor = (etiqueta: string) => hoja.getRows(1, hoja.rowCount)!.find(f => f.getCell(1).text === etiqueta)!.getCell(2).text;
+    expect(valor('Folio')).toBe('F-77');
+    expect(valor('Estado')).toBe('Chihuahua');
+    expect(valor('Ciudad')).toBe('Juárez');
+  });
+});

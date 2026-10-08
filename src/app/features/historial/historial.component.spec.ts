@@ -149,12 +149,44 @@ describe('HistorialComponent', () => {
     expect(fixture.componentInstance.registros.length).toBe(1);
   }));
 
-  it('si listar() rechaza la promesa, muestra el estado vacío en vez de propagar el error', fakeAsync(() => {
-    servicioFalso.listar.and.rejectWith(new Error('localStorage corrupto'));
+  it('si listar() rechaza la promesa, muestra un error de conexión con "Reintentar" (no "no hay trámites")', fakeAsync(() => {
+    servicioFalso.listar.and.rejectWith(new Error('servidor apagado'));
     fixture.detectChanges();
     tick();
     fixture.detectChanges();
 
-    expect(fixture.nativeElement.textContent).toContain('Todavía no hay trámites guardados.');
+    expect(fixture.nativeElement.textContent).toContain('No se pudo conectar con el servidor');
+    expect(fixture.nativeElement.textContent).not.toContain('Todavía no hay trámites guardados.');
+
+    servicioFalso.listar.and.resolveTo([registroDePrueba({ folio: 'F-REINTENTO' })]);
+    fixture.nativeElement.querySelector('button.reintentar').click();
+    tick();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('F-REINTENTO');
+  }));
+
+  it('si eliminar() falla, conserva el trámite en la lista y muestra un aviso', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo([registroDePrueba({ folio: 'F-9' })]);
+    servicioFalso.eliminar.and.rejectWith(new Error('sin conexión'));
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    spyOn(window, 'confirm').and.returnValue(true);
+    fixture.nativeElement.querySelector('button.eliminar').click();
+    tick();
+    fixture.detectChanges();
+
+    expect(fixture.componentInstance.registros.length).toBe(1);
+    expect(fixture.nativeElement.textContent).toContain('No se pudo eliminar el trámite');
+  }));
+
+  it('el buscador filtra por folio, paciente o ciudad', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo([registroDePrueba({ folio: 'AAA-1' }), registroDePrueba({ folio: 'BBB-2' })]);
+    fixture.detectChanges();
+    tick();
+    fixture.componentInstance.busqueda = 'bbb';
+    fixture.detectChanges();
+    expect(fixture.componentInstance.registrosFiltrados().map(r => r.folio)).toEqual(['BBB-2']);
   }));
 });

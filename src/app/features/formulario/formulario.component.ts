@@ -1,10 +1,9 @@
-import { Component, EventEmitter, Inject, Input, OnInit, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, EventEmitter, Inject, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { debounceTime } from 'rxjs';
+import { Subscription, debounceTime, tap } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { SeccionPasoComponent } from '../../shared/seccion-paso/seccion-paso.component';
 import { PdfVistaComponent } from '../exportacion/pdf-vista/pdf-vista.component';
 import { ExcelExportadorService } from '../exportacion/excel-exportador.service';
@@ -17,17 +16,14 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
   selector: 'app-formulario',
   standalone: true,
   imports: [
-    CommonModule, ReactiveFormsModule, MatButtonModule, MatIconModule, MatToolbarModule,
+    CommonModule, ReactiveFormsModule, MatButtonModule, MatIconModule,
     SeccionPasoComponent, PdfVistaComponent,
   ],
   template: `
-    <mat-toolbar class="encabezado">
-      <span>UMAM — Registro de Atención Prehospitalaria</span>
-    </mat-toolbar>
-
+    <!-- Encabezado fijo del paso: número de paso, salto rápido a cualquier sección y barra de avance. -->
     <div class="encabezado-paso">
       <div class="progreso-texto">
-        <span>Paso {{ pasoActual + 1 }} de {{ totalPasos }}</span>
+        <span class="paso-chip">Paso {{ pasoActual + 1 }} de {{ totalPasos }}</span>
         <select class="salto-seccion" [value]="pasoActual" (change)="irAPaso(+$any($event.target).value)" aria-label="Ir a sección">
           <option *ngFor="let titulo of titulosPasos; let i = index" [value]="i">{{ titulo }}</option>
         </select>
@@ -46,30 +42,35 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
       </main>
     </div>
 
+    <!-- Barra inferior fija: navegación entre pasos, acciones y estado del autoguardado. -->
     <div class="barra-acciones">
-      <button type="button" class="paso-anterior" mat-stroked-button [disabled]="pasoActual === 0" (click)="retroceder()">
-        <mat-icon>arrow_back</mat-icon> Anterior
-      </button>
-      <button *ngIf="pasoActual < totalPasos - 1" type="button" class="paso-siguiente" mat-raised-button color="primary" (click)="avanzar()">
-        Siguiente <mat-icon>arrow_forward</mat-icon>
-      </button>
-      <button *ngIf="pasoActual === totalPasos - 1" type="button" class="enviar-historial" mat-raised-button color="primary" (click)="enviarYVerHistorial()">
-        Enviar al Historial <mat-icon>send</mat-icon>
-      </button>
-      <span class="separador"></span>
-      <button type="button" class="guardar-borrador" mat-icon-button (click)="guardarBorrador()" aria-label="Guardar borrador" title="Guardar borrador">
-        <mat-icon>save</mat-icon>
-      </button>
-      <button type="button" class="exportar-pdf" mat-icon-button (click)="exportarPdf()" aria-label="Exportar PDF" title="Exportar PDF">
-        <mat-icon>picture_as_pdf</mat-icon>
-      </button>
-      <button type="button" class="exportar-excel" mat-icon-button (click)="exportarExcel()" aria-label="Exportar Excel" title="Exportar Excel">
-        <mat-icon>grid_on</mat-icon>
-      </button>
-      <button type="button" class="nuevo-registro" mat-icon-button (click)="nuevoRegistro()" aria-label="Nuevo registro" title="Nuevo registro">
-        <mat-icon>add</mat-icon>
-      </button>
-      <span class="estado-guardado" [class.error]="estadoGuardado === 'Error al guardar'">{{ estadoGuardado }}</span>
+      <div class="barra-interior">
+        <button type="button" class="paso-anterior" mat-stroked-button [disabled]="pasoActual === 0" (click)="retroceder()">
+          <mat-icon>arrow_back</mat-icon> <span class="texto-boton">Anterior</span>
+        </button>
+        <button *ngIf="pasoActual < totalPasos - 1" type="button" class="paso-siguiente" mat-flat-button (click)="avanzar()">
+          Siguiente <mat-icon iconPositionEnd>arrow_forward</mat-icon>
+        </button>
+        <button *ngIf="pasoActual === totalPasos - 1" type="button" class="enviar-historial" mat-flat-button (click)="enviarYVerHistorial()">
+          Enviar al Historial <mat-icon iconPositionEnd>send</mat-icon>
+        </button>
+
+        <span class="estado-guardado" [class.error]="estadoGuardado === 'Error al guardar'" *ngIf="estadoGuardado">
+          <mat-icon>{{ estadoGuardado === 'Error al guardar' ? 'cloud_off' : (estadoGuardado === 'Guardando…' ? 'cloud_sync' : 'cloud_done') }}</mat-icon>
+          {{ estadoGuardado }}
+        </span>
+        <span class="separador"></span>
+
+        <button type="button" class="guardar-borrador" mat-icon-button (click)="guardarBorrador()" aria-label="Guardar borrador" title="Guardar borrador">
+          <mat-icon>save</mat-icon>
+        </button>
+        <button type="button" class="exportar-excel" mat-icon-button (click)="exportarExcel()" aria-label="Exportar Excel" title="Exportar Excel">
+          <mat-icon>grid_on</mat-icon>
+        </button>
+        <button type="button" class="nuevo-registro" mat-icon-button (click)="nuevoRegistro()" aria-label="Nuevo registro" title="Nuevo registro">
+          <mat-icon>note_add</mat-icon>
+        </button>
+      </div>
     </div>
 
     <div class="solo-impresion">
@@ -77,28 +78,64 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
     </div>
   `,
   styles: [`
-    .encabezado { background: var(--umam-header-bg, #1892d3); color: var(--umam-header-fg, #fff); }
-    .encabezado-paso { position: sticky; top: 0; z-index: 5; background: #fff; padding: 10px 16px 0; border-bottom: 1px solid var(--umam-section-border, #b9def2); }
-    .progreso-texto { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
-    .progreso-texto > span { font-weight: 600; color: var(--umam-header-bg, #1892d3); white-space: nowrap; }
-    .salto-seccion { flex: 1; min-width: 0; max-width: 340px; min-height: 40px; padding: 4px 8px; border: 1px solid var(--umam-section-border, #b9def2); border-radius: 8px; font-size: 0.9rem; color: #333; background: #fff; }
-    .barra-progreso { height: 4px; background: var(--umam-section-bg, #dbeef9); border-radius: 2px 2px 0 0; overflow: hidden; }
-    .barra-progreso-relleno { height: 100%; background: var(--umam-header-bg, #1892d3); transition: width 0.2s; }
-    .layout { padding: 16px; padding-bottom: 88px; }
+    .encabezado-paso {
+      position: sticky; top: 0; z-index: 5;
+      background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(6px);
+      padding: 10px 16px 0; box-shadow: var(--umam-sombra-suave);
+    }
+    .progreso-texto { display: flex; align-items: center; gap: 12px; max-width: 900px; margin: 0 auto 10px; }
+    .paso-chip {
+      flex: none; padding: 6px 12px; border-radius: 999px;
+      background: var(--umam-section-bg); color: var(--umam-header-oscuro);
+      font-weight: 700; font-size: 0.85rem; white-space: nowrap;
+    }
+    .salto-seccion {
+      flex: 1; min-width: 0; min-height: 40px; padding: 4px 10px;
+      border: 1px solid var(--umam-section-border); border-radius: 10px;
+      font: inherit; font-size: 0.92rem; color: var(--umam-texto-fuerte); background: #fff; cursor: pointer;
+    }
+    .barra-progreso { height: 4px; background: var(--umam-section-bg); overflow: hidden; margin: 0 -16px; }
+    .barra-progreso-relleno {
+      height: 100%; background: linear-gradient(90deg, var(--umam-header-bg), var(--umam-header-oscuro));
+      transition: width 0.25s ease;
+    }
+    .layout { padding: 20px 16px 104px; }
     .contenido { max-width: 900px; margin: 0 auto; }
-    .barra-acciones { position: fixed; bottom: 0; left: 0; right: 0; z-index: 5; display: flex; align-items: center; gap: 8px; padding: 10px 16px; background: white; border-top: 1px solid var(--umam-section-border, #b9def2); }
-    .paso-siguiente, .enviar-historial { min-width: 130px; }
+    .barra-acciones {
+      position: fixed; bottom: 0; left: 0; right: 0; z-index: 5;
+      background: #fff; box-shadow: 0 -4px 16px rgba(16, 42, 67, 0.08);
+      padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+    }
+    .barra-interior { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; max-width: 900px; margin: 0 auto; }
+    .paso-anterior, .paso-siguiente, .enviar-historial { min-height: 44px; border-radius: 12px; }
+    /* Botón principal en azul marino del logo (el azul primario de Material se veía muy brillante). */
+    .paso-siguiente, .enviar-historial {
+      min-width: 140px;
+      --mat-button-filled-container-color: var(--umam-azul-marino);
+      --mat-button-filled-label-text-color: #fff;
+    }
     .separador { flex: 1; }
-    .estado-guardado { font-size: 0.8rem; color: #555; }
-    .estado-guardado.error { color: #c0392b; font-weight: 600; }
+    .estado-guardado { display: inline-flex; align-items: center; gap: 4px; font-size: 0.8rem; color: var(--umam-exito); }
+    .estado-guardado mat-icon { font-size: 18px; width: 18px; height: 18px; }
+    .estado-guardado.error { color: var(--umam-error); font-weight: 600; }
     .solo-impresion { display: none; }
+    /* Celular: todo en un solo renglón — "Anterior" queda solo con la flecha,
+       "Siguiente" ocupa el espacio libre y el estado de guardado queda como ícono. */
+    @media (max-width: 520px) {
+      .barra-interior { flex-wrap: nowrap; gap: 4px; }
+      .paso-anterior { min-width: 48px; padding: 0 8px; }
+      .paso-anterior .texto-boton { display: none; }
+      .paso-siguiente, .enviar-historial { flex: 1; min-width: 0; }
+      .separador { display: none; }
+      .estado-guardado { font-size: 0; } /* solo el ícono de nube (verde = guardado, rojo = error) */
+    }
     @media print {
-      .encabezado, .encabezado-paso, .barra-acciones, .layout { display: none !important; }
+      .encabezado-paso, .barra-acciones, .layout { display: none !important; }
       .solo-impresion { display: block !important; }
     }
   `],
 })
-export class FormularioComponent implements OnInit {
+export class FormularioComponent implements OnInit, OnDestroy {
   /**
    * Cuando App abre un trámite desde el Historial, lo pasa aquí en vez de dejar
    * que ngOnInit cargue "el más reciente" de localStorage — ver ngOnInit.
@@ -125,10 +162,23 @@ export class FormularioComponent implements OnInit {
   snapshotParaImpresion: Record<string, unknown> | undefined;
   private registroActual: RegistroAtencionPrehospitalaria;
 
+  /** Suscripción del autosave sobre el FormGroup actual (se cancela al cambiar de registro). */
+  private autosave?: Subscription;
+  /** Hay cambios que todavía no se mandaron a guardar (el debounce de 1 s no ha disparado). */
+  private cambiosPendientes = false;
+  /**
+   * Cola de guardados: cada PUT espera a que termine el anterior. Sin esto, un
+   * guardado lento (p. ej. con fotos) podía terminar DESPUÉS de uno más nuevo y
+   * dejar en el servidor una versión vieja del registro.
+   */
+  private colaGuardado: Promise<void> = Promise.resolve();
+  private guardadosEnCurso = 0;
+
   constructor(
     private fb: FormBuilder,
     @Inject(REGISTRO_SERVICE) private registroService: RegistroService,
     private excelExportador: ExcelExportadorService,
+    private cdr: ChangeDetectorRef,
   ) {
     this.registroActual = crearRegistroVacio();
     this.form = construirFormularioRegistro(this.fb, this.registroActual);
@@ -137,8 +187,17 @@ export class FormularioComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     // Se abrió un trámite puntual desde el Historial: se usa ese registro tal
     // cual, sin dejar que la carga de "el más reciente" de abajo lo pise.
+    // Se pide la versión más reciente al servidor: el objeto que trae el
+    // Historial puede ser una copia vieja (p. ej. si se editó, se fue al
+    // Historial y se volvió con la pestaña "Formulario").
     if (this.registroInicial) {
-      this.cargarRegistro(this.registroInicial);
+      let actualizado: RegistroAtencionPrehospitalaria | undefined;
+      try {
+        actualizado = await this.registroService.obtener(this.registroInicial.id);
+      } catch {
+        // Sin conexión: se usa la copia que trajo el Historial.
+      }
+      this.cargarRegistro(actualizado ?? this.registroInicial);
       return;
     }
     try {
@@ -182,6 +241,10 @@ export class FormularioComponent implements OnInit {
    * abrir un trámite puntual desde el Historial.
    */
   cargarRegistro(registro: RegistroAtencionPrehospitalaria): void {
+    // Si el registro anterior tenía cambios esperando el autosave (escritos en
+    // el último segundo), se guardan antes de reemplazar el formulario; antes
+    // se perdían al tocar "Nuevo registro" justo después de escribir.
+    if (this.cambiosPendientes) this.guardar();
     this.registroActual = registro;
     this.form = construirFormularioRegistro(this.fb, this.registroActual);
     this.estadoGuardado = '';
@@ -203,27 +266,58 @@ export class FormularioComponent implements OnInit {
     window.scrollTo(0, 0);
   }
 
+  /**
+   * Autoguardado: marca que hay cambios en cuanto se escribe y guarda 1 s
+   * después del último cambio. Cancela la suscripción del formulario anterior
+   * para que un debounce viejo no dispare sobre el registro nuevo.
+   */
   private suscribirAutosave(): void {
-    this.form.valueChanges.pipe(debounceTime(1000)).subscribe(() => this.guardarBorrador());
+    this.autosave?.unsubscribe();
+    this.autosave = this.form.valueChanges
+      .pipe(tap(() => (this.cambiosPendientes = true)), debounceTime(1000))
+      .subscribe(() => this.guardarBorrador());
+  }
+
+  /** Al salir del formulario (cambio a Historial) se guarda lo que esté pendiente. */
+  ngOnDestroy(): void {
+    this.autosave?.unsubscribe();
+    if (this.cambiosPendientes) this.guardar();
   }
 
   guardarBorrador(): void {
     this.guardar();
   }
 
-  private async guardar(): Promise<void> {
+  /**
+   * Toma la foto del formulario EN ESTE MOMENTO (sincrónico, antes de
+   * cualquier cambio de registro) y la encola para enviarse al servidor.
+   */
+  private guardar(): Promise<void> {
     const registro = this.construirRegistroDesdeFormulario();
-    try {
-      await this.registroService.guardar(registro);
-      this.estadoGuardado = `Guardado ${new Date().toLocaleTimeString()}`;
-    } catch (error) {
-      console.error('Error al guardar el borrador', error);
-      this.estadoGuardado = 'Error al guardar';
-    }
+    this.cambiosPendientes = false;
+    this.estadoGuardado = 'Guardando…';
+    const enviar = async () => {
+      try {
+        await this.registroService.guardar(registro);
+        this.estadoGuardado = `Guardado ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      } catch (error) {
+        console.error('Error al guardar el borrador', error);
+        this.estadoGuardado = 'Error al guardar';
+      } finally {
+        this.guardadosEnCurso--;
+      }
+    };
+    // Si no hay nada guardándose se envía ya mismo; si no, espera su turno.
+    this.colaGuardado = this.guardadosEnCurso === 0 ? enviar() : this.colaGuardado.then(enviar);
+    this.guardadosEnCurso++;
+    return this.colaGuardado;
   }
 
   exportarPdf(): void {
     this.snapshotParaImpresion = this.form.getRawValue();
+    // Dibuja la hoja con estos datos ANTES de abrir el diálogo de impresión;
+    // si no, se imprimía la hoja anterior (o en blanco la primera vez).
+    this.cdr.detectChanges();
     window.print();
   }
 

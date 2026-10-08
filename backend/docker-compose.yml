@@ -1,0 +1,22 @@
+# Base de datos PostgreSQL para desarrollo local.
+# Levantar:  docker compose up -d      Apagar:  docker compose down
+# Los datos sobreviven a reinicios gracias al volumen umam_pgdata
+# (docker compose down -v los borra).
+services:
+  postgres:
+    image: postgres:17
+    container_name: umam_postgres
+    # Usuario, contraseña y base de datos que se crean al primer arranque;
+    # deben coincidir con DB_USER / DB_PASSWORD / DB_NAME del .env.
+    environment:
+      POSTGRES_USER: umam
+      POSTGRES_PASSWORD: umam
+      POSTGRES_DB: umam
+    # Expone Postgres en localhost:5432 para que el backend se conecte.
+    ports:
+      - "5432:5432"
+    volumes:
+      - umam_pgdata:/var/lib/postgresql/data
+
+volumes:
+  umam_pgdata:

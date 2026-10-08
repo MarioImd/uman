@@ -14,19 +14,17 @@ npx ng serve
 ```
 
 Abre `http://localhost:4200`. Los datos se guardan automáticamente en el
-navegador (localStorage) mientras se llena el formulario.
+backend (PostgreSQL) mientras se llena el formulario, así que el backend
+debe estar corriendo — ver `backend/README.md`.
 
-## Conectar un backend real
+## Backend
 
 Los componentes solo dependen de la interfaz `RegistroService`
 (`src/app/core/services/registro.service.ts`), inyectada mediante el
-token `REGISTRO_SERVICE`. Para usar una API real:
-
-1. Crea `ApiRegistroService implements RegistroService` usando `HttpClient`.
-2. En `src/app/app.config.ts`, cambia `useClass: LocalStorageRegistroService`
-   por `useClass: ApiRegistroService`.
-
-Ningún componente necesita cambios.
+token `REGISTRO_SERVICE`. En `src/app/app.config.ts` se usa
+`ApiRegistroService` (habla con la API NestJS en `backend/`; la URL está en
+`API_REGISTROS_URL`). Para volver a guardar solo en el navegador, cambia a
+`useClass: LocalStorageRegistroService`.
 
 ## Pruebas
 

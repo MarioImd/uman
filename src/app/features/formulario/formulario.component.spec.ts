@@ -96,20 +96,18 @@ describe('FormularioComponent', () => {
     expect(servicioFalso.guardar).toHaveBeenCalled();
   });
 
-  it('el botón "Exportar PDF" llama a window.print()', () => {
+  it('exportarPdf() llama a window.print()', () => {
     spyOn(window, 'print');
-    const boton: HTMLButtonElement = fixture.nativeElement.querySelector('button.exportar-pdf');
-    boton.click();
+    fixture.componentInstance.exportarPdf();
     expect(window.print).toHaveBeenCalled();
   });
 
-  it('el botón "Exportar PDF" toma una foto (snapshot) del formulario para app-pdf-vista en vez de leer form.getRawValue() en cada ciclo', () => {
+  it('exportarPdf() toma una foto (snapshot) del formulario para app-pdf-vista en vez de leer form.getRawValue() en cada ciclo', () => {
     spyOn(window, 'print');
     expect(fixture.componentInstance.snapshotParaImpresion).toBeUndefined();
 
     fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.setValue('PDF-1');
-    const boton: HTMLButtonElement = fixture.nativeElement.querySelector('button.exportar-pdf');
-    boton.click();
+    fixture.componentInstance.exportarPdf();
 
     expect((fixture.componentInstance.snapshotParaImpresion as any).datosGenerales.folio).toBe('PDF-1');
   });
@@ -271,5 +269,72 @@ describe('FormularioComponent cuando listar() rechaza la promesa (localStorage c
     fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.setValue('X');
     tick(1500);
     expect(servicioFalso.guardar).toHaveBeenCalled();
+  }));
+});
+
+describe('FormularioComponent — autoguardado', () => {
+  let fixture: ComponentFixture<FormularioComponent>;
+  let servicioFalso: jasmine.SpyObj<RegistroService>;
+
+  beforeEach(async () => {
+    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'listar', 'eliminar']);
+    servicioFalso.listar.and.resolveTo([]);
+
+    await TestBed.configureTestingModule({
+      imports: [FormularioComponent],
+      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, provideNativeDateAdapter()],
+    }).compileComponents();
+    fixture = TestBed.createComponent(FormularioComponent);
+  });
+
+  it('los guardados salen en orden: el segundo no se envía hasta que termina el primero', fakeAsync(() => {
+    const enviados: string[] = [];
+    let terminarPrimero!: () => void;
+    servicioFalso.guardar.and.callFake(r => {
+      enviados.push(r.folio);
+      if (enviados.length === 1) return new Promise(res => (terminarPrimero = () => res(r)));
+      return Promise.resolve(r);
+    });
+    fixture.detectChanges();
+    tick();
+
+    const folio = fixture.componentInstance.form.get('datosGenerales')!.get('folio')!;
+    folio.setValue('V1');
+    fixture.componentInstance.guardarBorrador();
+    folio.setValue('V2');
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    expect(enviados).toEqual(['V1']);
+
+    terminarPrimero();
+    tick();
+    expect(enviados).toEqual(['V1', 'V2']);
+    tick(1500);
+  }));
+
+  it('"Nuevo registro" justo después de escribir guarda primero lo pendiente del registro anterior', fakeAsync(() => {
+    servicioFalso.guardar.and.callFake(async r => r);
+    fixture.detectChanges();
+    tick();
+    const idAnterior = fixture.componentInstance['registroActual'].id;
+
+    fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.setValue('SIN-GUARDAR');
+    tick(300); // menos que el debounce de 1 s
+    fixture.componentInstance.nuevoRegistro();
+    tick(1500);
+
+    const guardado = servicioFalso.guardar.calls.all().map(c => c.args[0]).find(r => r.id === idAnterior);
+    expect(guardado?.folio).toBe('SIN-GUARDAR');
+  }));
+
+  it('al salir del formulario (ngOnDestroy) guarda los cambios pendientes', fakeAsync(() => {
+    servicioFalso.guardar.and.callFake(async r => r);
+    fixture.detectChanges();
+    tick();
+    fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.setValue('AL-SALIR');
+    tick(200);
+    fixture.destroy();
+    tick(1500);
+    expect(servicioFalso.guardar.calls.mostRecent().args[0].folio).toBe('AL-SALIR');
   }));
 });

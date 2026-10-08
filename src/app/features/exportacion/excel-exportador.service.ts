@@ -23,7 +23,11 @@ export class ExcelExportadorService {
       hoja.columns = [{ header: 'Campo', key: 'campo', width: 40 }, { header: 'Valor', key: 'valor', width: 40 }];
       this.estilizarFilaEncabezado(hoja.getRow(1));
 
-      const valoresSeccion = (registro as unknown as Record<string, unknown>)[seccion.clave] as Record<string, unknown> | undefined;
+      // folio/estado/ciudad viven en la raíz del registro (no en registro.datosGenerales);
+      // un registro leído del servidor no trae la copia anidada, así que se leen de ahí.
+      const valoresSeccion = seccion.clave === 'datosGenerales'
+        ? { folio: registro.folio, estado: registro.estado, ciudad: registro.ciudad }
+        : (registro as unknown as Record<string, unknown>)[seccion.clave] as Record<string, unknown> | undefined;
       for (const campo of seccion.campos) {
         const valorCrudo = valoresSeccion?.[campo.clave];
         // Las imágenes y las firmas dibujadas se guardan como data URIs base64:

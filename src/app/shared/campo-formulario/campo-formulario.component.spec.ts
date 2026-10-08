@@ -372,3 +372,76 @@ describe('CampoFormularioComponent', () => {
     expect(control.value).toBe(firmaGuardada);
   });
 });
+
+describe('CampoFormularioComponent — validación de lo que se escribe', () => {
+  let fixture: ComponentFixture<CampoFormularioComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [CampoFormularioComponent],
+      providers: [provideNativeDateAdapter()],
+    }).compileComponents();
+    fixture = TestBed.createComponent(CampoFormularioComponent);
+  });
+
+  function escribir(campo: CampoFormulario, texto: string): { input: HTMLInputElement; control: FormControl } {
+    const control = new FormControl('');
+    fixture.componentInstance.campo = campo;
+    fixture.componentInstance.control = control;
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input');
+    input.value = texto;
+    input.dispatchEvent(new Event('input'));
+    return { input, control };
+  }
+
+  it('formato "letras" quita números y símbolos, pero conserva acentos, ñ, espacios, punto y guion', () => {
+    const { input, control } = escribir(
+      { clave: 'nombrePaciente', etiqueta: 'Nombre', tipo: 'texto', formato: 'letras' },
+      'Ma. José Núñez-López 123 #@',
+    );
+    expect(control.value).toBe('Ma. José Núñez-López  ');
+    expect(input.value).toBe('Ma. José Núñez-López  ');
+  });
+
+  it('formato "digitos" deja solo números y respeta el máximo de caracteres', () => {
+    const { input, control } = escribir(
+      { clave: 'telefono', etiqueta: 'Teléfono', tipo: 'texto', formato: 'digitos', maxLongitud: 10 },
+      '(656) 412-1593',
+    );
+    expect(control.value).toBe('6564121593');
+    expect(input.getAttribute('maxlength')).toBe('10');
+    expect(input.getAttribute('inputmode')).toBe('numeric');
+  });
+
+  it('un texto sin formato acepta cualquier carácter', () => {
+    const { control } = escribir({ clave: 'colonia', etiqueta: 'Colonia', tipo: 'texto' }, 'Col. 2 de Octubre #5');
+    expect(control.value).toBe('Col. 2 de Octubre #5');
+  });
+
+  it('un número bloquea "e", "+" y "-", y además "." si el campo es entero', () => {
+    fixture.componentInstance.campo = { clave: 'edadAnios', etiqueta: 'Edad', tipo: 'numero', min: 0, max: 120, entero: true };
+    fixture.componentInstance.control = new FormControl('');
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input[type="number"]');
+
+    for (const tecla of ['e', '+', '-', '.']) {
+      const evento = new KeyboardEvent('keydown', { key: tecla, cancelable: true });
+      input.dispatchEvent(evento);
+      expect(evento.defaultPrevented).withContext(tecla).toBeTrue();
+    }
+    const digito = new KeyboardEvent('keydown', { key: '7', cancelable: true });
+    input.dispatchEvent(digito);
+    expect(digito.defaultPrevented).toBeFalse();
+  });
+
+  it('un número decimal (sin "entero") sí permite el punto', () => {
+    fixture.componentInstance.campo = { clave: 'temp', etiqueta: 'Temp', tipo: 'numero', min: 25, max: 45 };
+    fixture.componentInstance.control = new FormControl('');
+    fixture.detectChanges();
+    const input: HTMLInputElement = fixture.nativeElement.querySelector('input[type="number"]');
+    const punto = new KeyboardEvent('keydown', { key: '.', cancelable: true });
+    input.dispatchEvent(punto);
+    expect(punto.defaultPrevented).toBeFalse();
+  });
+});

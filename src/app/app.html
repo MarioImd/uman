@@ -1,7 +1,28 @@
-<nav class="navegacion-vistas">
-  <button type="button" class="pestana" [class.activa]="vista === 'formulario'" (click)="irAFormulario()">Formulario</button>
-  <button type="button" class="pestana" [class.activa]="vista === 'historial'" (click)="irAHistorial()">Historial</button>
-</nav>
+<!-- Encabezado común a las dos vistas: marca + pestañas Formulario / Historial. -->
+<header class="barra-app">
+  <div class="marca">
+    <!-- Logo UMAM (el mismo de la hoja imprimible, pdf-vista.component.ts). -->
+    <span class="marca-logo">
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="18" fill="none" stroke="#0d3a5c" stroke-width="3"/>
+        <path d="M20 6 L23 15 L32 12 L26 20 L32 28 L23 25 L20 34 L17 25 L8 28 L14 20 L8 12 L17 15 Z" fill="#0d3a5c"/>
+        <path d="M20 11 L20 29 M15 14 C 25 17, 15 23, 25 26" stroke="#fff" stroke-width="1.6" fill="none"/>
+      </svg>
+    </span>
+    <div class="marca-texto">
+      <strong>UMAM</strong>
+      <span>Registro de Atención Prehospitalaria</span>
+    </div>
+  </div>
+  <nav class="navegacion-vistas">
+    <button type="button" class="pestana" [class.activa]="vista === 'formulario'" (click)="irAFormulario()">
+      <mat-icon>edit_note</mat-icon> Formulario
+    </button>
+    <button type="button" class="pestana" [class.activa]="vista === 'historial'" (click)="irAHistorial()">
+      <mat-icon>history</mat-icon> Historial
+    </button>
+  </nav>
+</header>
 
 <app-formulario
   *ngIf="vista === 'formulario'"

@@ -1,4 +1,4 @@
-import { FormBuilder, FormGroup } from '@angular/forms';
+import { FormArray, FormBuilder, FormGroup } from '@angular/forms';
 import { construirFormularioRegistro } from './construir-formulario';
 import { crearRegistroVacio } from '../models/registro.model';
 import { SECCIONES } from '../data/secciones.data';
@@ -66,5 +66,28 @@ describe('construirFormularioRegistro', () => {
     (form.get('signosVitales') as any).push(fila);
     expect((form.get('signosVitales') as any).length).toBe(1);
     expect(fila.get('fc')).toBeTruthy();
+  });
+});
+
+describe('construirFormularioRegistro — rangos numéricos', () => {
+  it('marca como inválido un valor fuera del rango definido en secciones.data.ts', () => {
+    const form = construirFormularioRegistro(new FormBuilder(), crearRegistroVacio());
+    const glasgow = form.get('anamnesis')!.get('glasgowOcular')!;
+
+    glasgow.setValue(5);
+    expect(glasgow.hasError('max')).toBeTrue();
+    glasgow.setValue(0);
+    expect(glasgow.hasError('min')).toBeTrue();
+    glasgow.setValue(4);
+    expect(glasgow.valid).toBeTrue();
+    glasgow.setValue('');
+    expect(glasgow.valid).withContext('vacío es válido (borrador)').toBeTrue();
+  });
+
+  it('las filas de tablas repetibles también validan su rango (SpO2 0–100)', () => {
+    const registro = { ...crearRegistroVacio(), signosVitales: [{ spo2: 120 }] };
+    const form = construirFormularioRegistro(new FormBuilder(), registro);
+    const spo2 = (form.get('signosVitales') as FormArray).at(0).get('spo2')!;
+    expect(spo2.hasError('max')).toBeTrue();
   });
 });

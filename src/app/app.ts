@@ -1,12 +1,13 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { MatIconModule } from '@angular/material/icon';
 import { FormularioComponent } from './features/formulario/formulario.component';
 import { HistorialComponent } from './features/historial/historial.component';
 import { RegistroAtencionPrehospitalaria } from './core/models/registro.model';
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, FormularioComponent, HistorialComponent],
+  imports: [CommonModule, MatIconModule, FormularioComponent, HistorialComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

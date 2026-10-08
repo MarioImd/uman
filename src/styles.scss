@@ -5,26 +5,31 @@
 // theme (primary: blue, tertiary: cyan, sampled from the UMAM paper form colors).
 // Learn more about theming at https://material.angular.dev/guide/theming
 
-body {
-  // Default the application to a light color theme. This can be changed to
-  // `dark` to enable the dark color theme, or to `light dark` to defer to the
-  // user's system settings.
-  color-scheme: light;
-
-  // Set a default background, font and text colors for the application using
-  // Angular Material's system-level CSS variables. Learn more about these
-  // variables at https://material.angular.dev/guide/system-variables
-  background-color: var(--mat-sys-surface);
-  color: var(--mat-sys-on-surface);
-  font: var(--mat-sys-body-medium);
-
-  // Reset the user agent margin.
-  margin: 0;
+html {
+  height: 100%;
+  // Al enfocar un campo con Tab (o el teclado del celular) el navegador lo
+  // desplaza a la vista: sin esto quedaba tapado por la barra de pasos (arriba)
+  // o la de acciones (abajo), que son fijas.
+  scroll-padding-top: 90px;
+  scroll-padding-bottom: 110px;
 }
-/* You can add global styles to this file, and also import other style files */
+body { min-height: 100%; }
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+body {
+  color-scheme: light;
+  margin: 0;
+  // Fondo gris azulado suave: las tarjetas blancas de cada sección resaltan encima.
+  background-color: var(--umam-fondo);
+  color: var(--umam-texto-fuerte);
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+// Foco visible al navegar con teclado (accesibilidad), sin afectar al toque/mouse.
+button:focus-visible, select:focus-visible, input:focus-visible {
+  outline: 2px solid var(--umam-header-bg);
+  outline-offset: 2px;
+}
 
 @media print {
   body {

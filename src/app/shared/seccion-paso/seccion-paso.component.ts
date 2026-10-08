@@ -30,9 +30,19 @@ import { SeccionFormulario } from '../../core/models/campo-formulario.model';
     </section>
   `,
   styles: [`
-    .paso { background: #fff; border: 1px solid var(--umam-section-border, #b9def2); border-radius: 12px; padding: 16px; }
-    .titulo-seccion { margin: 0 0 16px; font-size: 1.15rem; color: var(--umam-header-bg, #1892d3); border-bottom: 2px solid var(--umam-section-border, #b9def2); padding-bottom: 8px; }
-    .grid-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); column-gap: 12px; align-items: start; }
+    .paso { background: #fff; border: 1px solid var(--umam-section-border); border-radius: 16px; padding: 20px; box-shadow: var(--umam-sombra-suave); }
+    /* Título con la franja de color de las pestañas de la hoja física UMAM. */
+    .titulo-seccion {
+      margin: -20px -20px 20px; padding: 14px 20px; border-radius: 16px 16px 0 0;
+      font-size: 1.1rem; font-weight: 700; letter-spacing: 0.01em;
+      color: var(--umam-header-oscuro); background: var(--umam-section-bg);
+      border-bottom: 1px solid var(--umam-section-border); border-left: 5px solid var(--umam-header-bg);
+    }
+    .grid-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); column-gap: 14px; row-gap: 2px; align-items: start; }
+    @media (max-width: 520px) {
+      .paso { padding: 16px 14px; border-radius: 14px; }
+      .titulo-seccion { margin: -16px -14px 16px; padding: 12px 14px; border-radius: 14px 14px 0 0; }
+    }
     .celda-completa { grid-column: 1 / -1; }
   `],
 })

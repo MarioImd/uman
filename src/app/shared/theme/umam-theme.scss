@@ -17,7 +17,43 @@ $umam-theme: mat.define-theme((
 
 :root {
   @include mat.all-component-themes($umam-theme);
+
+  // Colores institucionales (hoja física UMAM).
   --umam-header-bg: #1892d3;
   --umam-header-fg: #ffffff;
-  --umam-section-border: #b9def2;
+  --umam-header-oscuro: #0f6fa8;
+  --umam-section-bg: #e6f3fb;
+  --umam-section-border: #c9e3f3;
+  // Azul marino del logo UMAM: botones principales (más sobrio que el azul brillante).
+  --umam-azul-marino: #0d3a5c;
+  --umam-azul-marino-hover: #145077;
+
+  // Colores de la interfaz (pantalla, no se usan en la impresión).
+  --umam-fondo: #f3f6fa;
+  --umam-texto-fuerte: #1f2d3d;
+  --umam-texto-suave: #6b7a8c;
+  --umam-error: #c0392b;
+  --umam-exito: #2e7d32;
+  --umam-sombra-suave: 0 1px 3px rgba(16, 42, 67, 0.08), 0 1px 2px rgba(16, 42, 67, 0.04);
+  --umam-sombra-media: 0 4px 16px rgba(16, 42, 67, 0.10);
+
+  // El tono principal de mat.$blue-palette es un azul violeta (#343dff) que no
+  // combina con los colores UMAM; se reemplaza en los componentes que usa la app.
+  --mat-form-field-outlined-caret-color: var(--umam-header-oscuro);
+  --mat-form-field-outlined-focus-outline-color: var(--umam-header-bg);
+  --mat-form-field-outlined-focus-label-text-color: var(--umam-header-oscuro);
+  --mat-form-field-focus-select-arrow-color: var(--umam-header-oscuro);
+  --mat-select-focused-arrow-color: var(--umam-header-oscuro);
+  --mat-pseudo-checkbox-full-selected-icon-color: var(--umam-header-bg);
+  --mat-pseudo-checkbox-minimal-selected-checkmark-color: var(--umam-header-bg);
+  --mat-datepicker-calendar-date-selected-state-background-color: var(--umam-header-bg);
+  --mat-datepicker-calendar-date-today-outline-color: var(--umam-header-bg);
+  --mat-datepicker-calendar-date-today-selected-state-outline-color: var(--umam-header-bg);
+  --mat-datepicker-calendar-date-preview-state-outline-color: var(--umam-header-bg);
+  --mat-datepicker-toggle-active-state-icon-color: var(--umam-header-oscuro);
+  --mat-button-outlined-label-text-color: var(--umam-azul-marino);
+  --mat-button-outlined-state-layer-color: var(--umam-azul-marino);
+  --mat-button-outlined-outline-color: var(--umam-section-border);
+  --mat-button-text-label-text-color: var(--umam-azul-marino);
+  --mat-button-text-state-layer-color: var(--umam-azul-marino);
 }
