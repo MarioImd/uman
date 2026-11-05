@@ -1,6 +1,16 @@
 <?php
 // Utilidades de petición y respuesta.
 
+/** X-Forwarded-Proto lo puede falsificar cualquiera: solo cuenta si config.php lo autoriza. */
+function esHttps(): bool
+{
+    $https = $_SERVER['HTTPS'] ?? '';
+    if ($https !== '' && $https !== 'off') {
+        return true;
+    }
+    return (config()['confiar_proxy'] ?? false) && ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+}
+
 function responder(int $estado, mixed $cuerpo): never
 {
     http_response_code($estado);

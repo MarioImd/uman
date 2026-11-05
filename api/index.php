@@ -17,6 +17,10 @@ try {
         responder(500, ['error' => 'Al servidor le falta la extensión de PHP: ' . implode(', ', $faltan) . '. Actívala en Select PHP Version.']);
     }
 
+    if ((config()['forzar_https'] ?? false) && esHttps()) {
+        header('Strict-Transport-Security: max-age=31536000');
+    }
+
     $base = dirname($_SERVER['SCRIPT_NAME']);
     $ruta = substr(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), strlen($base));
     $partes = explode('/', trim($ruta, '/'));

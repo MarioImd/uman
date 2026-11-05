@@ -18,7 +18,7 @@ function iniciarSesion(): void
     session_set_cookie_params([
         'path' => dirname($_SERVER['SCRIPT_NAME']),
         'httponly' => true,
-        'secure' => ($_SERVER['HTTPS'] ?? '') === 'on' || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https',
+        'secure' => (config()['forzar_https'] ?? false) || esHttps(),
         'samesite' => 'Lax',
     ]);
     session_start();
