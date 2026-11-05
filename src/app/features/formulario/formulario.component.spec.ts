@@ -9,6 +9,17 @@ import { SECCIONES } from '../../core/data/secciones.data';
 import { SesionService } from '../../core/services/sesion.service';
 
 const sesionFalsa = () => ({ sesionVencida: signal(false), usuario: signal<{ limiteBytes?: number } | null>(null) });
+/** Una imagen real y única, para que el navegador no la tenga en caché. */
+function firmaNueva(): string {
+  const lienzo = document.createElement('canvas');
+  lienzo.width = 300;
+  lienzo.height = 100;
+  const contexto = lienzo.getContext('2d')!;
+  contexto.fillStyle = `rgb(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 40)`;
+  contexto.fillRect(0, 0, 300, 100);
+  return lienzo.toDataURL('image/png');
+}
+
 const tamanoEnviado = (registro: unknown) => new Blob([JSON.stringify(registro)]).size;
 
 describe('FormularioComponent', () => {
@@ -104,18 +115,35 @@ describe('FormularioComponent', () => {
     expect(servicioFalso.guardar).toHaveBeenCalled();
   });
 
-  it('exportarPdf() llama a window.print()', () => {
+  it('exportarPdf() llama a window.print()', async () => {
     spyOn(window, 'print');
-    fixture.componentInstance.exportarPdf();
+    await fixture.componentInstance.exportarPdf();
     expect(window.print).toHaveBeenCalled();
   });
 
-  it('exportarPdf() toma una foto (snapshot) del formulario para app-pdf-vista en vez de leer form.getRawValue() en cada ciclo', () => {
+  it('exportarPdf() espera a que las firmas carguen antes de imprimir', async () => {
+    let anchos: number[] = [];
+    spyOn(window, 'print').and.callFake(() => {
+      anchos = Array.from<HTMLImageElement>(fixture.nativeElement.querySelectorAll('.imagen-firma')).map(i => i.naturalWidth);
+    });
+    fixture.componentInstance.form.get('traslado.firmaPaciente')!.setValue(firmaNueva());
+    await fixture.componentInstance.exportarPdf();
+    expect(anchos).toEqual([300]);
+  });
+
+  it('una imagen dañada no impide imprimir', async () => {
+    spyOn(window, 'print');
+    fixture.componentInstance.form.get('traslado.firmaPaciente')!.setValue('data:image/png;base64,no-es-imagen');
+    await fixture.componentInstance.exportarPdf();
+    expect(window.print).toHaveBeenCalled();
+  });
+
+  it('exportarPdf() toma una foto (snapshot) del formulario para app-pdf-vista en vez de leer form.getRawValue() en cada ciclo', async () => {
     spyOn(window, 'print');
     expect(fixture.componentInstance.snapshotParaImpresion).toBeUndefined();
 
     fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.setValue('PDF-1');
-    fixture.componentInstance.exportarPdf();
+    await fixture.componentInstance.exportarPdf();
 
     expect((fixture.componentInstance.snapshotParaImpresion as any).datosGenerales.folio).toBe('PDF-1');
   });
@@ -213,7 +241,7 @@ describe('FormularioComponent con un registro existente', () => {
     tick(100);
     fixture.detectChanges();
     expect(fixture.nativeElement.querySelector('app-seccion-paso')).toBeFalsy();
-    expect(fixture.nativeElement.textContent).toContain('Cargando');
+    expect(fixture.nativeElement.querySelector('app-cargando')?.textContent).toContain('Cargando');
     responder(registroGuardado);
     tick();
     fixture.detectChanges();
@@ -599,6 +627,30 @@ describe('FormularioComponent — versiones y errores del servidor', () => {
     expect(enviado.id).toBe(id);
     expect(fixture.componentInstance.idActual).not.toBe(id);
     expect(folio().value).toBe('');
+  }));
+
+  it('Enviar al Historial muestra la animación mientras guarda', fakeAsync(() => {
+    iniciar();
+    spyOn(window, 'print');
+    let terminar!: () => void;
+    servicioFalso.guardar.and.returnValue(new Promise(res => (terminar = () => res({ version: 1 }))));
+    fixture.componentInstance.enviarYVerHistorial();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-cargando')?.textContent).toContain('Guardando');
+    terminar();
+    tick();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-cargando')).toBeFalsy();
+  }));
+
+  it('si Enviar al Historial falla quita la animación', fakeAsync(() => {
+    iniciar();
+    servicioFalso.guardar.and.rejectWith(error(500));
+    fixture.componentInstance.enviarYVerHistorial();
+    tick();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-cargando')).toBeFalsy();
+    fixture.destroy();
   }));
 
   it('una foto nueva reemplaza a la que no ha salido', fakeAsync(() => {

@@ -1,10 +1,12 @@
-import { ChangeDetectorRef, Component, EventEmitter, Inject, OnDestroy, OnInit, Output } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, EventEmitter, Inject, OnDestroy, OnInit, Output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { CargandoComponent } from '../../shared/cargando/cargando.component';
 import { PaginadorComponent } from '../../shared/paginador/paginador.component';
 import { PdfVistaComponent } from '../exportacion/pdf-vista/pdf-vista.component';
+import { esperarImagenes } from '../exportacion/esperar-imagenes';
 import { ExcelExportadorService } from '../exportacion/excel-exportador.service';
 import { construirFormularioRegistro } from '../../core/forms/construir-formulario';
 import { RegistroAtencionPrehospitalaria, RegistroResumen } from '../../core/models/registro.model';
@@ -17,7 +19,7 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
 @Component({
   selector: 'app-historial',
   standalone: true,
-  imports: [CommonModule, MatButtonModule, MatIconModule, PaginadorComponent, PdfVistaComponent],
+  imports: [CommonModule, MatButtonModule, MatIconModule, CargandoComponent, PaginadorComponent, PdfVistaComponent],
   template: `
     <div class="contenido">
       <header class="cabecera">
@@ -33,7 +35,7 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
         </label>
       </header>
 
-      <p *ngIf="cargando && registros.length === 0" class="estado"><mat-icon>hourglass_empty</mat-icon> Cargando historial…</p>
+      <app-cargando *ngIf="cargando && registros.length === 0" texto="Cargando historial…"></app-cargando>
 
       <!-- Error de conexión: se distingue de "no hay trámites" para no confundir al usuario. -->
       <div *ngIf="!cargando && errorCarga" class="estado estado-error">
@@ -47,7 +49,7 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
         {{ busqueda.trim() ? 'Ningún trámite coincide con la búsqueda.' : 'Todavía no hay trámites guardados.' }}
       </p>
       <p *ngIf="mensajeError" class="aviso-error">{{ mensajeError }}</p>
-      <p *ngIf="procesandoId" class="aviso-carga">Cargando trámite…</p>
+      <app-cargando *ngIf="procesandoId" cubrir texto="Cargando trámite…"></app-cargando>
 
       <div class="tabla-envoltura" *ngIf="registros.length > 0">
         <table class="tabla-historial">
@@ -57,15 +59,17 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
               <th>Fecha</th>
               <th>Paciente</th>
               <th>Ciudad</th>
+              <th>Creado por</th>
               <th>Documentos</th>
             </tr>
           </thead>
           <tbody>
             <tr *ngFor="let registro of registros; trackBy: porId">
               <td class="folio">{{ registro.folio || '—' }}</td>
-              <td>{{ registro.fechaCreacion | date: 'dd/MM/yyyy HH:mm' }}</td>
-              <td>{{ registro.paciente || '(sin nombre)' }}</td>
-              <td>{{ registro.ciudad || '—' }}</td>
+              <td data-etiqueta="Fecha">{{ registro.fechaCreacion | date: 'dd/MM/yyyy HH:mm' }}</td>
+              <td data-etiqueta="Paciente">{{ registro.paciente || '(sin nombre)' }}</td>
+              <td data-etiqueta="Ciudad">{{ registro.ciudad || '—' }}</td>
+              <td data-etiqueta="Creado por">{{ registro.creadoPor || '—' }}</td>
               <td class="acciones-fila">
                 <button type="button" class="abrir" mat-flat-button [disabled]="!!procesandoId" (click)="abrirRegistro(registro)" title="Abrir para editar">
                   <mat-icon>edit</mat-icon> Abrir
@@ -92,7 +96,7 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
     </div>
   `,
   styles: [`
-    .contenido { max-width: 1000px; margin: 0 auto; padding: 20px 16px 32px; }
+    .contenido { max-width: 1200px; margin: 0 auto; padding: 20px 16px 32px; }
     .cabecera { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
     h1 { margin: 0; font-size: 1.4rem; color: var(--umam-texto-fuerte); }
     .subtitulo { margin: 2px 0 0; color: var(--umam-texto-suave); font-size: 0.9rem; }
@@ -116,8 +120,23 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
     .acciones-fila { display: flex; align-items: center; gap: 2px; }
     .abrir { min-height: 38px; margin-right: 6px; --mat-button-filled-container-color: var(--umam-azul-marino); --mat-button-filled-label-text-color: #fff; }
     .eliminar { color: var(--umam-error); }
-    .aviso-carga { color: var(--umam-texto-suave); margin: 0 0 12px; font-size: 0.9rem; }
     .solo-impresion { display: none; }
+    /* Celular y tableta: cada trámite es una tarjeta, con sus botones a la vista. */
+    @media (max-width: 900px) {
+      .tabla-envoltura { overflow: visible; background: none; border: none; box-shadow: none; }
+      .tabla-historial, .tabla-historial tbody, .tabla-historial tr, .tabla-historial td { display: block; }
+      .tabla-historial thead { display: none; }
+      .tabla-historial tbody tr {
+        margin-bottom: 10px; padding: 12px 14px; background: #fff; border: 1px solid var(--umam-section-border);
+        border-radius: 16px; box-shadow: var(--umam-sombra-suave);
+      }
+      .tabla-historial tbody tr:hover { background: #fff; }
+      .tabla-historial td { padding: 2px 0; white-space: normal; border: none; overflow-wrap: anywhere; }
+      .tabla-historial td[data-etiqueta]::before { content: attr(data-etiqueta) ': '; color: var(--umam-texto-suave); font-size: 0.85rem; }
+      .folio { margin-bottom: 4px; font-size: 1.05rem; }
+      .tabla-historial .acciones-fila { display: flex; gap: 4px; margin-top: 8px; }
+      .abrir { flex: 1; min-height: 44px; margin-right: 2px; }
+    }
     @media print {
       .contenido { display: none !important; }
       .solo-impresion { display: block !important; }
@@ -143,6 +162,7 @@ export class HistorialComponent implements OnInit, OnDestroy {
   /** Foto tomada justo antes de imprimir — mismo patrón que FormularioComponent. */
   snapshotParaImpresion: Record<string, unknown> | undefined;
 
+  private elemento = inject<ElementRef<HTMLElement>>(ElementRef);
   private esperaBusqueda?: ReturnType<typeof setTimeout>;
   /** Identifica la petición más reciente, para descartar respuestas que lleguen tarde. */
   private ultimaPeticion = 0;
@@ -247,6 +267,7 @@ export class HistorialComponent implements OnInit, OnDestroy {
     // Dibuja la hoja con estos datos ANTES de abrir el diálogo de impresión;
     // si no, se imprimía la hoja anterior (o en blanco la primera vez).
     this.cdr.detectChanges();
+    await esperarImagenes(this.elemento.nativeElement);
     window.print();
   }
 

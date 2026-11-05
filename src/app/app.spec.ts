@@ -102,7 +102,8 @@ describe('App', () => {
     const registro = { ...crearRegistroVacio(), folio: 'F-HIST' };
     const historial = fixture.debugElement.query(By.directive(HistorialComponent)).componentInstance as HistorialComponent;
     historial.abrir.emit(registro);
-    await fixture.whenStable();
+    // whenStable esperaría los 4 s del aviso de demora del Historial.
+    await new Promise(resolve => setTimeout(resolve));
     fixture.detectChanges();
 
     expect(fixture.componentInstance.vista).toBe('formulario');
@@ -176,6 +177,7 @@ describe('App', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
     expect((fixture.nativeElement as HTMLElement).querySelector('app-login')).toBeFalsy();
+    expect((fixture.nativeElement as HTMLElement).querySelector('app-cargando')).toBeTruthy();
   });
 
   it('con sesión se ven las vistas y el nombre', () => {

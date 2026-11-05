@@ -41,6 +41,8 @@ export interface RegistroResumen {
   ciudad: string;
   paciente: string;
   fechaCreacion: string;
+  /** Nombre de quien creó el trámite. */
+  creadoPor?: string;
 }
 
 /** Una página de resultados del servidor. */

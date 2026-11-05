@@ -59,8 +59,8 @@ export class AdminService {
     return firstValueFrom(this.http.get<Pagina<FilaActividad>>('api/actividad', { params: { pagina, q } }));
   }
 
-  eliminados(pagina: number): Promise<Pagina<RegistroEliminado>> {
-    return firstValueFrom(this.http.get<Pagina<RegistroEliminado>>('api/registros/eliminados', { params: { pagina } }));
+  eliminados(pagina: number, q = ''): Promise<Pagina<RegistroEliminado>> {
+    return firstValueFrom(this.http.get<Pagina<RegistroEliminado>>('api/registros/eliminados', { params: { pagina, q } }));
   }
 
   async restaurar(id: string): Promise<void> {

@@ -49,7 +49,7 @@ const ACCIONES: Record<FilaActividad['accion'], string> = {
     </div>
   `,
   styles: [`
-    .contenido { max-width: 1000px; margin: 0 auto; padding: 20px 16px 32px; }
+    .contenido { max-width: 1200px; margin: 0 auto; padding: 20px 16px 32px; }
     .cabecera { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
     h1 { margin: 0; font-size: 1.4rem; color: var(--umam-texto-fuerte); }
     .buscador { display: flex; align-items: center; gap: 6px; flex: 1; max-width: 360px; min-width: 220px; padding: 0 12px;

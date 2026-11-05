@@ -7,6 +7,7 @@ import { UsuariosComponent } from './features/admin/usuarios.component';
 import { FormularioComponent } from './features/formulario/formulario.component';
 import { HistorialComponent } from './features/historial/historial.component';
 import { LoginComponent } from './features/login/login.component';
+import { CargandoComponent } from './shared/cargando/cargando.component';
 import { LogoUmamComponent } from './shared/logo-umam/logo-umam.component';
 import { RegistroAtencionPrehospitalaria } from './core/models/registro.model';
 import { SesionService } from './core/services/sesion.service';
@@ -17,7 +18,7 @@ type Vista = 'formulario' | 'historial' | 'usuarios' | 'actividad' | 'eliminados
   selector: 'app-root',
   imports: [
     CommonModule, MatIconModule, FormularioComponent, HistorialComponent, LoginComponent, LogoUmamComponent,
-    UsuariosComponent, ActividadComponent, EliminadosComponent,
+    UsuariosComponent, ActividadComponent, EliminadosComponent, CargandoComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss'

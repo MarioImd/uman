@@ -54,9 +54,17 @@ test('la lista no contiene datos ni imágenes', async () => {
   const imagen = 'data:image/jpeg;base64,' + 'A'.repeat(1000);
   await guardar(conPaciente('Ana', { folio: 'F-1', ciudad: 'Puebla', observaciones: { fotos: [imagen] } }), admin);
   const r = await peticion('registros', { cookie: admin });
-  assert.deepEqual(Object.keys(r.json.items[0]).sort(), ['ciudad', 'fechaCreacion', 'folio', 'id', 'paciente']);
+  assert.deepEqual(Object.keys(r.json.items[0]).sort(), ['ciudad', 'creadoPor', 'fechaCreacion', 'folio', 'id', 'paciente']);
   assert.equal(r.json.items[0].paciente, 'Ana');
   assert.doesNotMatch(r.texto, /base64/);
+});
+
+test('la lista dice quién creó cada trámite, aunque otra persona lo edite', async () => {
+  const registro = nuevoRegistro();
+  await guardar(registro, paramedico);
+  await guardar({ ...registro, version: 1 }, admin);
+  const r = await peticion('registros', { cookie: admin });
+  assert.equal(r.json.items[0].creadoPor, 'Paramédico');
 });
 
 test('busca por folio, ciudad y paciente fuera de la primera página', async () => {

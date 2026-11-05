@@ -1,12 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { ChangeDetectorRef, Component, EventEmitter, HostListener, Inject, OnDestroy, OnInit, Output, effect, inject } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, EventEmitter, HostListener, Inject, OnDestroy, OnInit, Output, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Subscription, debounceTime, tap } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { CargandoComponent } from '../../shared/cargando/cargando.component';
 import { SeccionPasoComponent } from '../../shared/seccion-paso/seccion-paso.component';
 import { PdfVistaComponent } from '../exportacion/pdf-vista/pdf-vista.component';
+import { esperarImagenes } from '../exportacion/esperar-imagenes';
 import { ExcelExportadorService } from '../exportacion/excel-exportador.service';
 import { SECCIONES } from '../../core/data/secciones.data';
 import { construirFormularioRegistro } from '../../core/forms/construir-formulario';
@@ -41,10 +43,11 @@ interface Envio {
   standalone: true,
   imports: [
     CommonModule, ReactiveFormsModule, MatButtonModule, MatIconModule,
-    SeccionPasoComponent, PdfVistaComponent,
+    SeccionPasoComponent, PdfVistaComponent, CargandoComponent,
   ],
   template: `
-    <p class="aviso-carga" *ngIf="cargando"><mat-icon>hourglass_empty</mat-icon> Cargando…</p>
+    <app-cargando *ngIf="cargando"></app-cargando>
+    <app-cargando *ngIf="enviandoAlHistorial" cubrir texto="Guardando el trámite…"></app-cargando>
 
     <ng-container *ngIf="!cargando">
     <!-- Encabezado fijo del paso: número de paso, salto rápido a cualquier sección y barra de avance. -->
@@ -174,7 +177,6 @@ interface Envio {
     .estado-guardado mat-icon { font-size: 18px; width: 18px; height: 18px; }
     .estado-guardado.error { color: var(--umam-error); font-weight: 600; }
     .solo-impresion { display: none; }
-    .aviso-carga { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 48px 16px; margin: 0; color: var(--umam-texto-suave); }
     .registro-en-edicion { max-width: 900px; margin: 0 auto 8px; color: var(--umam-texto-suave); font-size: 0.82rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .aviso-choque {
       display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
@@ -208,6 +210,8 @@ export class FormularioComponent implements OnInit, OnDestroy {
   /** Aún no se sabe qué registro mostrar; capturar ahora se perdería al cargarlo. */
   cargando = true;
   errorExcel = false;
+  /** "Enviar al Historial" está esperando al servidor. */
+  enviandoAlHistorial = false;
   /** El servidor rechazó guardar porque el registro cambió o se eliminó. Detiene el autosave. */
   choque: '' | 'conflicto' | 'eliminado' = '';
 
@@ -245,6 +249,7 @@ export class FormularioComponent implements OnInit, OnDestroy {
   private esperaSesion = false;
   private reintento?: ReturnType<typeof setTimeout>;
   private sesion = inject(SesionService);
+  private elemento = inject<ElementRef<HTMLElement>>(ElementRef);
 
   constructor(
     private fb: FormBuilder,
@@ -508,11 +513,12 @@ export class FormularioComponent implements OnInit, OnDestroy {
     this.procesarCola();
   }
 
-  exportarPdf(): void {
+  async exportarPdf(): Promise<void> {
     this.snapshotParaImpresion = this.form.getRawValue();
     // Dibuja la hoja con estos datos ANTES de abrir el diálogo de impresión;
     // si no, se imprimía la hoja anterior (o en blanco la primera vez).
     this.cdr.detectChanges();
+    await esperarImagenes(this.elemento.nativeElement);
     window.print();
   }
 
@@ -525,11 +531,14 @@ export class FormularioComponent implements OnInit, OnDestroy {
    */
   async enviarYVerHistorial(): Promise<void> {
     this.registroActual = { ...this.registroActual, finalizado: true };
-    if (!(await this.guardar())) {
+    this.enviandoAlHistorial = true;
+    const guardado = await this.guardar();
+    this.enviandoAlHistorial = false;
+    if (!guardado) {
       this.registroActual = { ...this.registroActual, finalizado: false };
       return;
     }
-    this.exportarPdf();
+    await this.exportarPdf();
     // Este paciente terminó: lo siguiente que se capture no debe caer sobre él.
     this.cargarRegistro(crearRegistroVacio());
     this.enviarAlHistorial.emit();

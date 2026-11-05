@@ -47,8 +47,9 @@ function listarRegistros(): never
 
     // Nunca se selecciona `datos`: ahí viven las imágenes.
     $filas = $pdo->prepare(
-        "SELECT id, folio, ciudad, paciente, fecha_creacion FROM registros WHERE $filtro
-         ORDER BY fecha_creacion DESC, id LIMIT $porPagina OFFSET $offset"
+        "SELECT r.id, folio, ciudad, paciente, fecha_creacion, u.nombre AS creado_por
+         FROM registros r JOIN usuarios u ON u.id = r.creado_por WHERE $filtro
+         ORDER BY fecha_creacion DESC, r.id LIMIT $porPagina OFFSET $offset"
     );
     $filas->execute($parametros);
 
@@ -58,6 +59,7 @@ function listarRegistros(): never
         'ciudad' => $fila['ciudad'],
         'paciente' => $fila['paciente'],
         'fechaCreacion' => fechaIso($fila['fecha_creacion']),
+        'creadoPor' => $fila['creado_por'],
     ], $filas->fetchAll());
 
     responder(200, ['items' => $items, 'total' => (int) $total->fetchColumn(), 'pagina' => $pagina, 'porPagina' => $porPagina]);
@@ -256,13 +258,23 @@ function listarEliminados(): never
 {
     exigirAdmin();
     [$pagina, $porPagina, $offset] = paginacion();
+    $filtro = 'r.eliminado = 1';
+    $parametros = [];
+    $texto = trim((string) ($_GET['q'] ?? ''));
+    if ($texto !== '') {
+        $filtro .= " AND (r.folio LIKE ? ESCAPE '|' OR r.paciente LIKE ? ESCAPE '|' OR r.ciudad LIKE ? ESCAPE '|' OR u.usuario LIKE ? ESCAPE '|')";
+        $parametros = array_fill(0, 4, patronBusqueda($texto));
+    }
+
     $pdo = db();
-    $total = (int) $pdo->query('SELECT COUNT(*) FROM registros WHERE eliminado = 1')->fetchColumn();
-    $filas = $pdo->query(
+    $total = $pdo->prepare("SELECT COUNT(*) FROM registros r LEFT JOIN usuarios u ON u.id = r.eliminado_por WHERE $filtro");
+    $total->execute($parametros);
+    $consulta = $pdo->prepare(
         "SELECT r.id, r.folio, r.ciudad, r.paciente, r.fecha_creacion, r.eliminado_en, u.usuario AS eliminado_por
          FROM registros r LEFT JOIN usuarios u ON u.id = r.eliminado_por
-         WHERE r.eliminado = 1 ORDER BY r.eliminado_en DESC, r.id LIMIT $porPagina OFFSET $offset"
-    )->fetchAll();
+         WHERE $filtro ORDER BY r.eliminado_en DESC, r.id LIMIT $porPagina OFFSET $offset"
+    );
+    $consulta->execute($parametros);
 
     $items = array_map(fn (array $fila) => [
         'id' => $fila['id'],
@@ -272,9 +284,9 @@ function listarEliminados(): never
         'fechaCreacion' => fechaIso($fila['fecha_creacion']),
         'eliminadoPor' => $fila['eliminado_por'],
         'eliminadoEn' => fechaIso($fila['eliminado_en']),
-    ], $filas);
+    ], $consulta->fetchAll());
 
-    responder(200, ['items' => $items, 'total' => $total, 'pagina' => $pagina, 'porPagina' => $porPagina]);
+    responder(200, ['items' => $items, 'total' => (int) $total->fetchColumn(), 'pagina' => $pagina, 'porPagina' => $porPagina]);
 }
 
 function restaurarRegistro(string $id): never

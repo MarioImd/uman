@@ -56,7 +56,7 @@ const USUARIO_VACIO: NuevoUsuario = { usuario: '', nombre: '', clave: '', rol: '
     </div>
   `,
   styles: [`
-    .contenido { max-width: 1000px; margin: 0 auto; padding: 20px 16px 32px; }
+    .contenido { max-width: 1200px; margin: 0 auto; padding: 20px 16px 32px; }
     h1 { margin: 0 0 16px; font-size: 1.4rem; color: var(--umam-texto-fuerte); }
     .alta {
       display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; align-items: end;

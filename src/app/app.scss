@@ -53,8 +53,26 @@
 }
 .salir:hover { background: rgba(0, 0, 0, 0.15); }
 
+// Tableta y celular: marca y cuenta arriba, y las pestañas en un solo renglón que se desliza.
+@media (max-width: 1000px) {
+  .marca { flex: 1; }
+  .cuenta { order: 2; }
+  .navegacion-vistas {
+    order: 3;
+    flex-basis: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+    border-radius: 999px;
+  }
+  .navegacion-vistas::-webkit-scrollbar { display: none; }
+  .pestana { flex: none; }
+}
+
 @media (max-width: 480px) {
   .marca-texto span { display: none; }
+  .usuario-actual { max-width: 110px; }
+  .pestana { padding: 6px 12px; }
 }
 
 @media print {

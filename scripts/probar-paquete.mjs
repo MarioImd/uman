@@ -3,6 +3,7 @@
 // Uso: npm run test:paquete
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { PROYECTO, apagarEntorno, levantarEntorno } from './entorno-pruebas.mjs';
 
 const raiz = process.cwd().replaceAll('\\', '/');
 const docker = (...args) => execFileSync('docker', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
@@ -29,13 +30,13 @@ function quitar() {
   for (const { nombre } of SITIOS) spawnSync('docker', ['rm', '-f', nombre], { stdio: 'ignore' });
 }
 
-function arrancar({ nombre, puerto, ruta, ini, config = 'config.php', imagen = 'uman-php' }) {
+function arrancar({ nombre, puerto, ruta, ini, config = 'config.php', imagen = `${PROYECTO}-php` }) {
   const volumenes = [
     '-v', `${raiz}/docker/php/config.php:/etc/umam/config.php:ro`,
     '-v', `${raiz}/docker/php/${config}:/etc/umam/activa.php:ro`,
   ];
   if (ini) volumenes.push('-v', `${raiz}/docker/php/${ini}:/usr/local/etc/php/conf.d/zz-prueba.ini:ro`);
-  docker('run', '-d', '--name', nombre, '--network', 'uman_default', '-p', `${puerto}:80`,
+  docker('run', '-d', '--name', nombre, '--network', `${PROYECTO}_default`, '-p', `${puerto}:80`,
     '--add-host', 'umam.test:127.0.0.1', '-e', 'UMAM_CONFIG=/etc/umam/activa.php', ...volumenes, imagen);
   docker('exec', nombre, 'mkdir', '-p', ruta);
   docker('cp', 'deploy/.', `${nombre}:${ruta}`);
@@ -56,7 +57,7 @@ async function esperar({ puerto }) {
 
 let resultado = 1;
 try {
-  docker('compose', 'up', '-d', '--build');
+  await levantarEntorno();
   docker('build', '-f', 'docker/php/Dockerfile.fpm', '-t', 'uman-fpm', 'docker/php');
   quitar();
   for (const sitio of SITIOS) arrancar(sitio);
@@ -64,5 +65,6 @@ try {
   resultado = spawnSync('node', ['--test', '--test-concurrency=1', 'api-tests/paquete/paquete.test.mjs'], { stdio: 'inherit' }).status;
 } finally {
   quitar();
+  apagarEntorno();
 }
 process.exit(resultado ?? 1);

@@ -12,6 +12,17 @@ function pagina(items: RegistroResumen[], total = items.length, numero = 1): Pag
   return { items, total, pagina: numero, porPagina: 20 };
 }
 
+/** Una imagen real y única, para que el navegador no la tenga en caché. */
+function firmaNueva(): string {
+  const lienzo = document.createElement('canvas');
+  lienzo.width = 300;
+  lienzo.height = 100;
+  const contexto = lienzo.getContext('2d')!;
+  contexto.fillStyle = `rgb(${Math.floor(Math.random() * 255)}, ${Math.floor(Math.random() * 255)}, 40)`;
+  contexto.fillRect(0, 0, 300, 100);
+  return lienzo.toDataURL('image/png');
+}
+
 function completo(datos: Partial<RegistroAtencionPrehospitalaria> = {}): RegistroAtencionPrehospitalaria {
   return { ...crearRegistroVacio(), ...datos };
 }
@@ -65,6 +76,13 @@ describe('HistorialComponent', () => {
     expect(fila.textContent).toContain('F-2');
     expect(fila.textContent).toContain('Ana López');
     expect(fila.textContent).toContain('Chihuahua');
+  }));
+
+  it('muestra quién creó el trámite', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([{ ...resumen(), creadoPor: 'Ana Paramédica' } as RegistroResumen]));
+    iniciar();
+    expect(fixture.nativeElement.querySelector('.tabla-historial thead').textContent).toContain('Creado por');
+    expect(fixture.nativeElement.querySelector('.tabla-historial tbody tr').textContent).toContain('Ana Paramédica');
   }));
 
   it('muestra "(sin nombre)" cuando el trámite no tiene nombre de paciente', fakeAsync(() => {
@@ -156,6 +174,32 @@ describe('HistorialComponent', () => {
     botones[0].click();
     fixture.detectChanges();
     expect(botones[1].disabled).toBeTrue();
+    fixture.destroy();
+  }));
+
+  it('mientras descarga un trámite muestra la animación', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([resumen()]));
+    let responder!: (r: RegistroAtencionPrehospitalaria) => void;
+    servicioFalso.obtener.and.returnValue(new Promise(r => (responder = r)));
+    iniciar();
+    boton('button.abrir').click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-cargando')?.textContent).toContain('Cargando trámite');
+    responder(completo());
+    tick();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-cargando')).toBeFalsy();
+  }));
+
+  it('al entrar muestra la animación hasta tener la lista', fakeAsync(() => {
+    let responder!: (p: Pagina<RegistroResumen>) => void;
+    servicioFalso.listar.and.returnValue(new Promise(r => (responder = r)));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-cargando')?.textContent).toContain('Cargando historial');
+    responder(pagina([resumen()]));
+    tick();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-cargando')).toBeFalsy();
   }));
 
   it('si falla obtener muestra error y no emite abrir', fakeAsync(() => {
@@ -199,6 +243,18 @@ describe('HistorialComponent', () => {
     expect(window.print).toHaveBeenCalled();
     expect((fixture.componentInstance.snapshotParaImpresion as any).datosGenerales.folio).toBe('F-5');
   }));
+
+  it('Exportar PDF espera a que las firmas carguen antes de imprimir', async () => {
+    const fila = resumen();
+    servicioFalso.listar.and.resolveTo(pagina([fila]));
+    servicioFalso.obtener.and.resolveTo(completo({ id: fila.id, traslado: { firmaPaciente: firmaNueva() } }));
+    let anchos: number[] = [];
+    spyOn(window, 'print').and.callFake(() => {
+      anchos = Array.from<HTMLImageElement>(fixture.nativeElement.querySelectorAll('.imagen-firma')).map(i => i.naturalWidth);
+    });
+    await fixture.componentInstance.exportarPdf(fila);
+    expect(anchos).toEqual([300]);
+  });
 
   it('Exportar Excel pide el registro completo y lo pasa al exportador', fakeAsync(() => {
     const fila = resumen();
