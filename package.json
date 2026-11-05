@@ -5,6 +5,8 @@
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
+    "build:cpanel": "ng build --base-href ./ && node scripts/empaquetar.mjs",
+    "test:api": "node --test --test-concurrency=1 \"api-tests/*.test.mjs\"",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
   },

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import * as ExcelJS from 'exceljs';
+import type * as ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { SECCIONES } from '../../core/data/secciones.data';
 import { RegistroAtencionPrehospitalaria } from '../../core/models/registro.model';
@@ -14,7 +14,9 @@ const FUENTE_ENCABEZADO: Partial<ExcelJS.Font> = { color: { argb: 'FFFFFFFF' }, 
 @Injectable({ providedIn: 'root' })
 export class ExcelExportadorService {
   async construirLibro(registro: RegistroAtencionPrehospitalaria): Promise<ExcelJS.Workbook> {
-    const libro = new ExcelJS.Workbook();
+    // exceljs pesa mucho y casi nadie exporta en cada visita: se descarga solo al usarlo.
+    const modulo = await import('exceljs');
+    const libro = new (modulo.Workbook ?? modulo.default.Workbook)();
     libro.creator = 'UMAM';
     libro.created = new Date();
 
