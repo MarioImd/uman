@@ -36,7 +36,7 @@ function listarActividad(): never
     $parametros = [];
     $texto = trim((string) ($_GET['q'] ?? ''));
     if ($texto !== '') {
-        $filtro = '(u.usuario LIKE ? OR u.nombre LIKE ? OR a.folio LIKE ?)';
+        $filtro = "(u.usuario LIKE ? ESCAPE '|' OR u.nombre LIKE ? ESCAPE '|' OR a.folio LIKE ? ESCAPE '|')";
         $parametros = array_fill(0, 3, patronBusqueda($texto));
     }
 

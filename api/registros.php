@@ -13,10 +13,14 @@ function paginacion(): array
     return [$pagina, $porPagina, ($pagina - 1) * $porPagina];
 }
 
-/** Convierte un texto de búsqueda en patrón LIKE, tratando % y _ como texto literal. */
+/**
+ * Convierte un texto de búsqueda en patrón LIKE, tratando % y _ como texto literal.
+ * Se usa con ESCAPE '|' porque el escape por defecto (\\) deja de funcionar en
+ * MySQL con NO_BACKSLASH_ESCAPES.
+ */
 function patronBusqueda(string $texto): string
 {
-    return '%' . addcslashes($texto, '\\%_') . '%';
+    return '%' . strtr($texto, ['|' => '||', '%' => '|%', '_' => '|_']) . '%';
 }
 
 /** Fecha de MySQL (UTC) a ISO 8601. */
@@ -33,7 +37,7 @@ function listarRegistros(): never
     $parametros = [];
     $texto = trim((string) ($_GET['q'] ?? ''));
     if ($texto !== '') {
-        $filtro .= ' AND (folio LIKE ? OR paciente LIKE ? OR ciudad LIKE ?)';
+        $filtro .= " AND (folio LIKE ? ESCAPE '|' OR paciente LIKE ? ESCAPE '|' OR ciudad LIKE ? ESCAPE '|')";
         $parametros = array_fill(0, 3, patronBusqueda($texto));
     }
 
