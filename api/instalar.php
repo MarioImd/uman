@@ -48,39 +48,52 @@ function avisoDisplayErrores(): string
         : '';
 }
 
-$faltan = extensionesFaltantes();
-if ($faltan !== []) {
-    pagina(500, '<p><strong>Al servidor le falta la extensión de PHP: ' . implode(', ', $faltan) . '.</strong> Actívala en Select PHP Version o pídela a soporte, y vuelve a abrir esta página.</p>');
-}
+try {
+    prepararEntorno();
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    pagina(200, '<form method="post"><label>Token de instalación <input type="password" name="token" required></label> <button>Instalar</button></form>');
-}
+    $faltan = extensionesFaltantes();
+    if ($faltan !== []) {
+        pagina(500, '<p><strong>Al servidor le falta la extensión de PHP: ' . implode(', ', $faltan) . '.</strong> Actívala en Select PHP Version o pídela a soporte, y vuelve a abrir esta página.</p>');
+    }
 
-$token = (string) (config()['token_instalacion'] ?? '');
-if ($token === '' || !hash_equals($token, (string) ($_POST['token'] ?? ''))) {
-    pagina(403, '<p>Token incorrecto.</p>');
-}
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        pagina(200, '<form method="post"><label>Token de instalación <input type="password" name="token" required></label> <button>Instalar</button></form>');
+    }
 
-$pdo = db();
-$hayTabla = $pdo->query("SHOW TABLES LIKE 'usuarios'")->fetchColumn() !== false;
-if ($hayTabla && $pdo->query("SELECT COUNT(*) FROM usuarios WHERE rol = 'admin'")->fetchColumn() > 0) {
-    pagina(409, '<p>UMAM ya está instalado. Borra este archivo del servidor.</p>' . avisoDisplayErrores());
-}
+    $token = (string) (config()['token_instalacion'] ?? '');
+    if ($token === '' || !hash_equals($token, (string) ($_POST['token'] ?? ''))) {
+        pagina(403, '<p>Token incorrecto.</p>');
+    }
 
-foreach (array_filter(array_map('trim', explode(';', file_get_contents(__DIR__ . '/schema.sql')))) as $sentencia) {
-    $pdo->exec($sentencia);
-}
+    $pdo = db();
+    $hayTabla = $pdo->query("SHOW TABLES LIKE 'usuarios'")->fetchColumn() !== false;
+    if ($hayTabla && $pdo->query("SELECT COUNT(*) FROM usuarios WHERE rol = 'admin'")->fetchColumn() > 0) {
+        pagina(409, '<p>UMAM ya está instalado. Borra este archivo del servidor.</p>' . avisoDisplayErrores());
+    }
 
-$claves = [];
-$crear = $pdo->prepare('INSERT INTO usuarios (usuario, nombre, password_hash, rol, creado_en) VALUES (?, ?, ?, ?, UTC_TIMESTAMP(3))');
-foreach ([['admin', 'Administrador', 'admin'], ['paramedico', 'Paramédico', 'usuario']] as [$usuario, $nombre, $rol]) {
-    $claves[$usuario] = bin2hex(random_bytes(8));
-    $crear->execute([$usuario, $nombre, password_hash($claves[$usuario], PASSWORD_DEFAULT), $rol]);
-}
+    foreach (array_filter(array_map('trim', explode(';', file_get_contents(__DIR__ . '/schema.sql')))) as $sentencia) {
+        $pdo->exec($sentencia);
+    }
 
-pagina(200, '<p>Instalación completa. <strong>Guarda estas claves ahora: no se vuelven a mostrar.</strong></p>'
-    . "<ul><li>admin: <code id=\"clave-admin\">{$claves['admin']}</code></li>"
-    . "<li>paramedico: <code id=\"clave-paramedico\">{$claves['paramedico']}</code></li></ul>"
-    . resumenLimites()
-    . '<p><strong>Ahora borra instalar.php del servidor.</strong></p>');
+    // Las dos cuentas o ninguna: si una falla, nadie queda con una clave que no se mostró.
+    $pdo->beginTransaction();
+    $claves = [];
+    $crear = $pdo->prepare('INSERT INTO usuarios (usuario, nombre, password_hash, rol, creado_en) VALUES (?, ?, ?, ?, UTC_TIMESTAMP(3))');
+    foreach ([['admin', 'Administrador', 'admin'], ['paramedico', 'Paramédico', 'usuario']] as [$usuario, $nombre, $rol]) {
+        $claves[$usuario] = bin2hex(random_bytes(8));
+        $crear->execute([$usuario, $nombre, password_hash($claves[$usuario], PASSWORD_DEFAULT), $rol]);
+    }
+    $pdo->commit();
+
+    pagina(200, '<p>Instalación completa. <strong>Guarda estas claves ahora: no se vuelven a mostrar.</strong></p>'
+        . "<ul><li>admin: <code id=\"clave-admin\">{$claves['admin']}</code></li>"
+        . "<li>paramedico: <code id=\"clave-paramedico\">{$claves['paramedico']}</code></li></ul>"
+        . resumenLimites()
+        . '<p><strong>Ahora borra instalar.php del servidor.</strong></p>');
+} catch (Throwable $error) {
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    error_log((string) $error);
+    pagina(500, '<p>No se pudo instalar. Revisa los datos de config.php y el registro de errores del servidor.</p>');
+}
