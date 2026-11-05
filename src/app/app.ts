@@ -1,6 +1,9 @@
 import { Component, OnInit, ViewChild, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
+import { ActividadComponent } from './features/admin/actividad.component';
+import { EliminadosComponent } from './features/admin/eliminados.component';
+import { UsuariosComponent } from './features/admin/usuarios.component';
 import { FormularioComponent } from './features/formulario/formulario.component';
 import { HistorialComponent } from './features/historial/historial.component';
 import { LoginComponent } from './features/login/login.component';
@@ -12,7 +15,10 @@ type Vista = 'formulario' | 'historial' | 'usuarios' | 'actividad' | 'eliminados
 
 @Component({
   selector: 'app-root',
-  imports: [CommonModule, MatIconModule, FormularioComponent, HistorialComponent, LoginComponent, LogoUmamComponent],
+  imports: [
+    CommonModule, MatIconModule, FormularioComponent, HistorialComponent, LoginComponent, LogoUmamComponent,
+    UsuariosComponent, ActividadComponent, EliminadosComponent,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

@@ -41,6 +41,11 @@
     (enviarAlHistorial)="irAHistorial()"
   ></app-formulario>
   <app-historial *ngIf="vista === 'historial'" (abrir)="abrirDesdeHistorial($event)"></app-historial>
+  <ng-container *ngIf="usuario.rol === 'admin'">
+    <app-usuarios *ngIf="vista === 'usuarios'"></app-usuarios>
+    <app-actividad *ngIf="vista === 'actividad'"></app-actividad>
+    <app-eliminados *ngIf="vista === 'eliminados'"></app-eliminados>
+  </ng-container>
 
   <!-- Encima de la app, sin destruirla: lo capturado sigue en el formulario. -->
   <app-login *ngIf="sesion.sesionVencida()" [usuarioFijo]="usuario.usuario"></app-login>
