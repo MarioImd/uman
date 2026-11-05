@@ -1,10 +1,11 @@
 import { InjectionToken } from '@angular/core';
-import { RegistroAtencionPrehospitalaria } from '../models/registro.model';
+import { Pagina, RegistroAtencionPrehospitalaria, RegistroResumen } from '../models/registro.model';
 
 export interface RegistroService {
-  guardar(registro: RegistroAtencionPrehospitalaria): Promise<RegistroAtencionPrehospitalaria>;
+  guardar(registro: RegistroAtencionPrehospitalaria): Promise<{ version: number }>;
   obtener(id: string): Promise<RegistroAtencionPrehospitalaria | undefined>;
-  listar(): Promise<RegistroAtencionPrehospitalaria[]>;
+  ultimo(): Promise<RegistroAtencionPrehospitalaria | undefined>;
+  listar(pagina: number, q: string): Promise<Pagina<RegistroResumen>>;
   eliminar(id: string): Promise<void>;
 }
 

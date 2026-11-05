@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNativeDateAdapter } from '@angular/material/core';
@@ -5,15 +6,25 @@ import { App } from './app';
 import { HistorialComponent } from './features/historial/historial.component';
 import { FormularioComponent } from './features/formulario/formulario.component';
 import { REGISTRO_SERVICE } from './core/services/registro.service';
-import { LocalStorageRegistroService } from './core/services/registro-local-storage.service';
+import { SesionService } from './core/services/sesion.service';
 import { crearRegistroVacio } from './core/models/registro.model';
 
 describe('App', () => {
   beforeEach(async () => {
-    localStorage.clear();
+    const registros = {
+      guardar: async () => ({ version: 1 }),
+      obtener: async () => undefined,
+      ultimo: async () => undefined,
+      listar: async () => ({ items: [], total: 0, pagina: 1, porPagina: 20 }),
+      eliminar: async () => undefined,
+    };
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [{ provide: REGISTRO_SERVICE, useClass: LocalStorageRegistroService }, provideNativeDateAdapter()],
+      providers: [
+        { provide: REGISTRO_SERVICE, useValue: registros },
+        { provide: SesionService, useValue: { sesionVencida: signal(false) } },
+        provideNativeDateAdapter(),
+      ],
     }).compileComponents();
   });
 

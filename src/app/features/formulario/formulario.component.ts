@@ -1,4 +1,5 @@
-import { ChangeDetectorRef, Component, EventEmitter, Inject, Input, OnDestroy, OnInit, Output } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectorRef, Component, EventEmitter, Inject, Input, OnDestroy, OnInit, Output, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { Subscription, debounceTime, tap } from 'rxjs';
@@ -11,6 +12,7 @@ import { SECCIONES } from '../../core/data/secciones.data';
 import { construirFormularioRegistro } from '../../core/forms/construir-formulario';
 import { crearRegistroVacio, RegistroAtencionPrehospitalaria } from '../../core/models/registro.model';
 import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.service';
+import { SesionService } from '../../core/services/sesion.service';
 
 @Component({
   selector: 'app-formulario',
@@ -20,6 +22,19 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
     SeccionPasoComponent, PdfVistaComponent,
   ],
   template: `
+    <!-- No se pudo abrir el trámite: no se muestra el formulario para no capturar sobre nada. -->
+    <div class="aviso-apertura" *ngIf="errorApertura">
+      <mat-icon>cloud_off</mat-icon>
+      <p>{{ errorApertura }}</p>
+      <button type="button" class="reintentar" mat-stroked-button *ngIf="registroInicial && !aperturaInexistente" (click)="ngOnInit()">
+        <mat-icon>refresh</mat-icon> Reintentar
+      </button>
+      <button type="button" class="empezar-nuevo" mat-stroked-button (click)="nuevoRegistro()">
+        <mat-icon>note_add</mat-icon> Nuevo registro
+      </button>
+    </div>
+
+    <ng-container *ngIf="!errorApertura">
     <!-- Encabezado fijo del paso: número de paso, salto rápido a cualquier sección y barra de avance. -->
     <div class="encabezado-paso">
       <div class="progreso-texto">
@@ -31,6 +46,23 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
       <div class="barra-progreso">
         <div class="barra-progreso-relleno" [style.width.%]="((pasoActual + 1) / totalPasos) * 100"></div>
       </div>
+    </div>
+
+    <!-- Lo capturado sigue en pantalla: la persona decide qué hacer. -->
+    <div class="aviso-choque" *ngIf="choque === 'conflicto'" role="alert">
+      <p>Otra persona modificó este registro. Tus últimos cambios no se guardaron.</p>
+      <button type="button" class="recargar" mat-stroked-button (click)="recargar()">
+        <mat-icon>refresh</mat-icon> Recargar
+      </button>
+    </div>
+    <div class="aviso-choque" *ngIf="choque === 'eliminado'" role="alert">
+      <p>Este registro fue eliminado. Tus últimos cambios no se guardaron.</p>
+      <button type="button" class="empezar-nuevo" mat-stroked-button (click)="nuevoRegistro()">
+        <mat-icon>note_add</mat-icon> Nuevo registro
+      </button>
+    </div>
+    <div class="aviso-choque" *ngIf="estadoGuardado === ESTADO_MUY_GRANDE" role="alert">
+      <p>El registro es demasiado grande para el servidor. Quita o reduce algunas imágenes.</p>
     </div>
 
     <div class="layout" [formGroup]="form">
@@ -55,8 +87,8 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
           Enviar al Historial <mat-icon iconPositionEnd>send</mat-icon>
         </button>
 
-        <span class="estado-guardado" [class.error]="estadoGuardado === 'Error al guardar'" *ngIf="estadoGuardado">
-          <mat-icon>{{ estadoGuardado === 'Error al guardar' ? 'cloud_off' : (estadoGuardado === 'Guardando…' ? 'cloud_sync' : 'cloud_done') }}</mat-icon>
+        <span class="estado-guardado" [class.error]="hayErrorGuardado" *ngIf="estadoGuardado">
+          <mat-icon>{{ hayErrorGuardado ? 'cloud_off' : (estadoGuardado === 'Guardando…' ? 'cloud_sync' : 'cloud_done') }}</mat-icon>
           {{ estadoGuardado }}
         </span>
         <span class="separador"></span>
@@ -76,6 +108,7 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
     <div class="solo-impresion">
       <app-pdf-vista [registro]="snapshotParaImpresion"></app-pdf-vista>
     </div>
+    </ng-container>
   `,
   styles: [`
     .encabezado-paso {
@@ -119,6 +152,19 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
     .estado-guardado mat-icon { font-size: 18px; width: 18px; height: 18px; }
     .estado-guardado.error { color: var(--umam-error); font-weight: 600; }
     .solo-impresion { display: none; }
+    .aviso-apertura {
+      display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center;
+      max-width: 520px; margin: 48px auto; padding: 32px 16px; color: var(--umam-error);
+      background: #fff; border: 1px dashed #f1b8b2; border-radius: 16px;
+    }
+    .aviso-apertura p { margin: 0; }
+    .aviso-choque {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px;
+      max-width: 900px; margin: 12px auto 0; padding: 10px 14px; border-radius: 10px;
+      color: var(--umam-error); background: #fdecea;
+    }
+    .aviso-choque p { margin: 0; flex: 1; min-width: 200px; }
+    .aviso-choque button, .aviso-apertura button { min-height: 44px; border-radius: 12px; }
     /* Celular: todo en un solo renglón — "Anterior" queda solo con la flecha,
        "Siguiente" ocupa el espacio libre y el estado de guardado queda como ícono. */
     @media (max-width: 520px) {
@@ -130,7 +176,7 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
       .estado-guardado { font-size: 0; } /* solo el ícono de nube (verde = guardado, rojo = error) */
     }
     @media print {
-      .encabezado-paso, .barra-acciones, .layout { display: none !important; }
+      .encabezado-paso, .barra-acciones, .layout, .aviso-choque { display: none !important; }
       .solo-impresion { display: block !important; }
     }
   `],
@@ -138,12 +184,21 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
 export class FormularioComponent implements OnInit, OnDestroy {
   /**
    * Cuando App abre un trámite desde el Historial, lo pasa aquí en vez de dejar
-   * que ngOnInit cargue "el más reciente" de localStorage — ver ngOnInit.
+   * que ngOnInit cargue el último registro del usuario — ver ngOnInit.
    */
   @Input() registroInicial?: RegistroAtencionPrehospitalaria;
 
   /** Se dispara al terminar "Enviar al Historial" — App usa esto para cambiar de vista. */
   @Output() enviarAlHistorial = new EventEmitter<void>();
+
+  readonly ESTADO_MUY_GRANDE = 'Registro demasiado grande';
+
+  /** El servidor rechazó guardar porque el registro cambió o se eliminó. Detiene el autosave. */
+  choque: '' | 'conflicto' | 'eliminado' = '';
+  /** Mensaje cuando no se pudo abrir el trámite pedido. */
+  errorApertura = '';
+  /** El trámite ya no existe, así que reintentar no serviría. */
+  aperturaInexistente = false;
 
   secciones = SECCIONES;
   form: FormGroup;
@@ -173,6 +228,15 @@ export class FormularioComponent implements OnInit, OnDestroy {
    */
   private colaGuardado: Promise<void> = Promise.resolve();
   private guardadosEnCurso = 0;
+  /**
+   * Versión del registro en edición. Es un objeto por registro cargado: así un
+   * guardado encolado usa la versión de SU registro aunque ya se haya cambiado
+   * a otro, y lee al enviarse la versión que devolvió el guardado anterior.
+   */
+  private controlVersion: { version: number } = { version: 0 };
+  /** Guardados rechazados por sesión vencida; se reenvían al volver a entrar. */
+  private pendientesDeSesion: (() => Promise<void>)[] = [];
+  private sesion = inject(SesionService);
 
   constructor(
     private fb: FormBuilder,
@@ -182,41 +246,46 @@ export class FormularioComponent implements OnInit, OnDestroy {
   ) {
     this.registroActual = crearRegistroVacio();
     this.form = construirFormularioRegistro(this.fb, this.registroActual);
+    effect(() => {
+      if (!this.sesion.sesionVencida()) this.reenviarPendientesDeSesion();
+    });
   }
 
   async ngOnInit(): Promise<void> {
-    // Se abrió un trámite puntual desde el Historial: se usa ese registro tal
-    // cual, sin dejar que la carga de "el más reciente" de abajo lo pise.
-    // Se pide la versión más reciente al servidor: el objeto que trae el
-    // Historial puede ser una copia vieja (p. ej. si se editó, se fue al
-    // Historial y se volvió con la pestaña "Formulario").
+    // Se abrió un trámite puntual desde el Historial: se pide la versión más
+    // reciente al servidor, porque la que trae App puede ser vieja (p. ej. si se
+    // editó, se fue al Historial y se volvió con la pestaña "Formulario"). Si
+    // falla no se abre: capturar sobre una copia podría pisar el registro.
     if (this.registroInicial) {
-      let actualizado: RegistroAtencionPrehospitalaria | undefined;
+      this.errorApertura = '';
+      this.aperturaInexistente = false;
       try {
-        actualizado = await this.registroService.obtener(this.registroInicial.id);
-      } catch {
-        // Sin conexión: se usa la copia que trajo el Historial.
+        const actualizado = await this.registroService.obtener(this.registroInicial.id);
+        if (actualizado) {
+          this.cargarRegistro(actualizado);
+        } else {
+          this.aperturaInexistente = true;
+          this.errorApertura = 'Ese trámite ya no existe.';
+        }
+      } catch (error) {
+        console.error('No se pudo abrir el trámite.', error);
+        this.errorApertura = 'No se pudo abrir el trámite. Revisa tu conexión e inténtalo de nuevo.';
       }
-      this.cargarRegistro(actualizado ?? this.registroInicial);
       return;
     }
     try {
-      const existentes = await this.registroService.listar();
-      // Solo reemplazamos this.form por el registro cargado si el usuario no ha
-      // empezado a editar el formulario inicial (vacío) durante esta espera asíncrona.
-      // Si ya está "dirty", el usuario ya escribió algo mientras listar() resolvía;
-      // sobrescribir this.form aquí perdería esa edición en curso, así que la
-      // conservamos y omitimos la recarga en vez de arriesgar pérdida de datos.
-      if (existentes.length > 0 && !this.form.dirty) {
-        this.registroActual = existentes[existentes.length - 1];
+      const ultimo = await this.registroService.ultimo();
+      // Solo se reemplaza el formulario si el usuario no empezó a escribir durante
+      // la espera: sobrescribirlo perdería esa edición en curso.
+      if (ultimo && !this.form.dirty) {
+        this.registroActual = ultimo;
+        this.controlVersion = { version: ultimo.version ?? 0 };
         this.form = construirFormularioRegistro(this.fb, this.registroActual);
       }
     } catch (error) {
-      // Si listar() rechaza (p. ej. localStorage corrupto), seguimos con el
-      // borrador vacío en vez de dejar que el error se propague — lo importante
-      // es que el autosave de abajo (finally) siempre termine suscrito, sin
-      // importar si la carga del borrador existente tuvo éxito o no.
-      console.error('No se pudieron cargar los registros guardados; se continúa con un borrador nuevo.', error);
+      // Sin conexión se sigue con un borrador nuevo; lo importante es que el
+      // autosave de abajo (finally) siempre quede suscrito.
+      console.error('No se pudo cargar el último registro; se continúa con uno nuevo.', error);
     } finally {
       this.suscribirAutosave();
     }
@@ -227,8 +296,7 @@ export class FormularioComponent implements OnInit, OnDestroy {
    * y el autosave vuelto a suscribir sobre el formulario nuevo (la suscripción
    * anterior queda apuntando al FormGroup viejo, que ya no recibe entradas del
    * usuario una vez que [formGroup] en la plantilla pasa a apuntar aquí).
-   * Así la app puede usarse para un segundo paciente sin tener que limpiar
-   * localStorage a mano.
+   * Así la app puede usarse para un segundo paciente.
    */
   nuevoRegistro(): void {
     this.cargarRegistro(crearRegistroVacio());
@@ -245,11 +313,30 @@ export class FormularioComponent implements OnInit, OnDestroy {
     // el último segundo), se guardan antes de reemplazar el formulario; antes
     // se perdían al tocar "Nuevo registro" justo después de escribir.
     if (this.cambiosPendientes) this.guardar();
+    this.cambiosPendientes = false;
     this.registroActual = registro;
+    this.controlVersion = { version: registro.version ?? 0 };
     this.form = construirFormularioRegistro(this.fb, this.registroActual);
     this.estadoGuardado = '';
+    this.choque = '';
+    this.errorApertura = '';
     this.pasoActual = 0;
     this.suscribirAutosave();
+  }
+
+  /** Tras un choque, descarta lo de esta pantalla y trae lo que hay en el servidor. */
+  async recargar(): Promise<void> {
+    try {
+      const actualizado = await this.registroService.obtener(this.registroActual.id);
+      if (actualizado) {
+        this.cargarRegistro(actualizado);
+      } else {
+        this.choque = 'eliminado';
+      }
+    } catch (error) {
+      console.error('No se pudo recargar el registro.', error);
+      this.estadoGuardado = 'Error al guardar';
+    }
   }
 
   avanzar(): void {
@@ -293,24 +380,59 @@ export class FormularioComponent implements OnInit, OnDestroy {
    * cualquier cambio de registro) y la encola para enviarse al servidor.
    */
   private guardar(): Promise<void> {
+    if (this.choque) return Promise.resolve();
     const registro = this.construirRegistroDesdeFormulario();
+    const control = this.controlVersion;
     this.cambiosPendientes = false;
     this.estadoGuardado = 'Guardando…';
     const enviar = async () => {
       try {
-        await this.registroService.guardar(registro);
+        const { version } = await this.registroService.guardar({ ...registro, version: control.version });
+        control.version = version;
         this.estadoGuardado = `Guardado ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
       } catch (error) {
         console.error('Error al guardar el borrador', error);
-        this.estadoGuardado = 'Error al guardar';
+        this.atenderErrorDeGuardado(error, control, enviar);
       } finally {
         this.guardadosEnCurso--;
       }
     };
-    // Si no hay nada guardándose se envía ya mismo; si no, espera su turno.
+    return this.encolar(enviar);
+  }
+
+  /** Si no hay nada guardándose se envía ya mismo; si no, espera su turno. */
+  private encolar(enviar: () => Promise<void>): Promise<void> {
     this.colaGuardado = this.guardadosEnCurso === 0 ? enviar() : this.colaGuardado.then(enviar);
     this.guardadosEnCurso++;
     return this.colaGuardado;
+  }
+
+  private atenderErrorDeGuardado(error: unknown, control: { version: number }, enviar: () => Promise<void>): void {
+    const estado = error instanceof HttpErrorResponse ? error.status : 0;
+    if (estado === 401) {
+      this.pendientesDeSesion.push(enviar);
+      this.estadoGuardado = 'Sesión vencida';
+      return;
+    }
+    // Un choque de un guardado del registro anterior no afecta al que está en pantalla.
+    if (estado === 409 && control === this.controlVersion) {
+      this.choque = (error as HttpErrorResponse).error?.codigo === 'eliminado' ? 'eliminado' : 'conflicto';
+      this.autosave?.unsubscribe();
+      this.cambiosPendientes = false;
+      this.estadoGuardado = 'Error al guardar';
+      return;
+    }
+    this.estadoGuardado = estado === 413 ? this.ESTADO_MUY_GRANDE : 'Error al guardar';
+  }
+
+  private reenviarPendientesDeSesion(): void {
+    const pendientes = this.pendientesDeSesion;
+    this.pendientesDeSesion = [];
+    pendientes.forEach(enviar => this.encolar(enviar));
+  }
+
+  get hayErrorGuardado(): boolean {
+    return ['Error al guardar', 'Sesión vencida', this.ESTADO_MUY_GRANDE].includes(this.estadoGuardado);
   }
 
   exportarPdf(): void {
@@ -330,6 +452,7 @@ export class FormularioComponent implements OnInit, OnDestroy {
    */
   async enviarYVerHistorial(): Promise<void> {
     await this.guardar();
+    if (this.choque) return;
     this.exportarPdf();
     this.enviarAlHistorial.emit();
   }

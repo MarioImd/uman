@@ -1,22 +1,27 @@
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { signal } from '@angular/core';
+import { HttpErrorResponse } from '@angular/common/http';
 import { provideNativeDateAdapter } from '@angular/material/core';
 import { FormularioComponent } from './formulario.component';
 import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.service';
 import { crearRegistroVacio } from '../../core/models/registro.model';
 import { SECCIONES } from '../../core/data/secciones.data';
+import { SesionService } from '../../core/services/sesion.service';
+
+const sesionFalsa = () => ({ sesionVencida: signal(false) });
 
 describe('FormularioComponent', () => {
   let fixture: ComponentFixture<FormularioComponent>;
   let servicioFalso: jasmine.SpyObj<RegistroService>;
 
   beforeEach(async () => {
-    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'listar', 'eliminar']);
-    servicioFalso.listar.and.resolveTo([]);
-    servicioFalso.guardar.and.callFake(async r => r);
+    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'ultimo', 'listar', 'eliminar']);
+    servicioFalso.ultimo.and.resolveTo(undefined);
+    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
 
     await TestBed.configureTestingModule({
       imports: [FormularioComponent],
-      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, provideNativeDateAdapter()],
+      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, { provide: SesionService, useValue: sesionFalsa() }, provideNativeDateAdapter()],
     }).compileComponents();
 
     fixture = TestBed.createComponent(FormularioComponent);
@@ -178,27 +183,27 @@ describe('FormularioComponent con un registro existente', () => {
   const registroGuardado = { ...crearRegistroVacio(), folio: 'FOLIO-EXISTENTE' };
 
   beforeEach(async () => {
-    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'listar', 'eliminar']);
-    servicioFalso.listar.and.resolveTo([registroGuardado]);
-    servicioFalso.guardar.and.callFake(async r => r);
+    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'ultimo', 'listar', 'eliminar']);
+    servicioFalso.ultimo.and.resolveTo(registroGuardado);
+    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
 
     await TestBed.configureTestingModule({
       imports: [FormularioComponent],
-      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, provideNativeDateAdapter()],
+      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, { provide: SesionService, useValue: sesionFalsa() }, provideNativeDateAdapter()],
     }).compileComponents();
 
     fixture = TestBed.createComponent(FormularioComponent);
   });
 
-  it('reconstruye el formulario con los valores del registro cargado en listar()', fakeAsync(() => {
+  it('reconstruye el formulario con los valores del registro devuelto por ultimo()', fakeAsync(() => {
     fixture.detectChanges();
     tick();
     expect(fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.value).toBe('FOLIO-EXISTENTE');
   }));
 
-  it('omite la recarga si el usuario ya editó el formulario mientras listar() estaba pendiente', fakeAsync(() => {
+  it('omite la recarga si el usuario ya editó el formulario mientras ultimo() estaba pendiente', fakeAsync(() => {
     fixture.detectChanges();
-    // Simula que el usuario empezó a escribir durante la espera asíncrona de listar(),
+    // Simula que el usuario empezó a escribir durante la espera asíncrona de ultimo(),
     // antes de que la promesa se resuelva (todavía no hay tick()).
     fixture.componentInstance.form.markAsDirty();
     tick();
@@ -213,26 +218,27 @@ describe('FormularioComponent con registroInicial (abierto desde el Historial)',
   const masReciente = { ...crearRegistroVacio(), folio: 'FOLIO-MAS-RECIENTE' };
 
   beforeEach(async () => {
-    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'listar', 'eliminar']);
-    // listar() sí tiene registros — si registroInicial no lo bloqueara, este
-    // se cargaría por encima del que se pidió abrir desde el Historial.
-    servicioFalso.listar.and.resolveTo([masReciente]);
-    servicioFalso.guardar.and.callFake(async r => r);
+    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'ultimo', 'listar', 'eliminar']);
+    // ultimo() sí tiene registro: si registroInicial no lo bloqueara, este se
+    // cargaría por encima del que se pidió abrir desde el Historial.
+    servicioFalso.ultimo.and.resolveTo(masReciente);
+    servicioFalso.obtener.and.resolveTo(registroDelHistorial);
+    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
 
     await TestBed.configureTestingModule({
       imports: [FormularioComponent],
-      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, provideNativeDateAdapter()],
+      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, { provide: SesionService, useValue: sesionFalsa() }, provideNativeDateAdapter()],
     }).compileComponents();
 
     fixture = TestBed.createComponent(FormularioComponent);
     fixture.componentInstance.registroInicial = registroDelHistorial;
   });
 
-  it('usa el registro pasado por @Input en vez de cargar "el más reciente" de listar()', fakeAsync(() => {
+  it('usa el registro pasado por @Input en vez de cargar el último propio', fakeAsync(() => {
     fixture.detectChanges();
     tick();
     expect(fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.value).toBe('FOLIO-HISTORIAL');
-    expect(servicioFalso.listar).not.toHaveBeenCalled();
+    expect(servicioFalso.ultimo).not.toHaveBeenCalled();
   }));
 
   it('arranca en el paso 0 y con el autosave suscrito', fakeAsync(() => {
@@ -246,24 +252,24 @@ describe('FormularioComponent con registroInicial (abierto desde el Historial)',
   }));
 });
 
-describe('FormularioComponent cuando listar() rechaza la promesa (localStorage corrupto)', () => {
+describe('FormularioComponent cuando ultimo() rechaza la promesa', () => {
   let fixture: ComponentFixture<FormularioComponent>;
   let servicioFalso: jasmine.SpyObj<RegistroService>;
 
   beforeEach(async () => {
-    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'listar', 'eliminar']);
-    servicioFalso.listar.and.rejectWith(new Error('localStorage corrupto'));
-    servicioFalso.guardar.and.callFake(async r => r);
+    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'ultimo', 'listar', 'eliminar']);
+    servicioFalso.ultimo.and.rejectWith(new Error('sin conexión'));
+    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
 
     await TestBed.configureTestingModule({
       imports: [FormularioComponent],
-      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, provideNativeDateAdapter()],
+      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, { provide: SesionService, useValue: sesionFalsa() }, provideNativeDateAdapter()],
     }).compileComponents();
 
     fixture = TestBed.createComponent(FormularioComponent);
   });
 
-  it('el autosave sigue quedando suscrito y llama a guardar() aunque listar() rechace', fakeAsync(() => {
+  it('el autosave sigue quedando suscrito y llama a guardar() aunque ultimo() rechace', fakeAsync(() => {
     fixture.detectChanges();
     tick();
     fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.setValue('X');
@@ -277,12 +283,12 @@ describe('FormularioComponent — autoguardado', () => {
   let servicioFalso: jasmine.SpyObj<RegistroService>;
 
   beforeEach(async () => {
-    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'listar', 'eliminar']);
-    servicioFalso.listar.and.resolveTo([]);
+    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'ultimo', 'listar', 'eliminar']);
+    servicioFalso.ultimo.and.resolveTo(undefined);
 
     await TestBed.configureTestingModule({
       imports: [FormularioComponent],
-      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, provideNativeDateAdapter()],
+      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, { provide: SesionService, useValue: sesionFalsa() }, provideNativeDateAdapter()],
     }).compileComponents();
     fixture = TestBed.createComponent(FormularioComponent);
   });
@@ -292,8 +298,8 @@ describe('FormularioComponent — autoguardado', () => {
     let terminarPrimero!: () => void;
     servicioFalso.guardar.and.callFake(r => {
       enviados.push(r.folio);
-      if (enviados.length === 1) return new Promise(res => (terminarPrimero = () => res(r)));
-      return Promise.resolve(r);
+      if (enviados.length === 1) return new Promise(res => (terminarPrimero = () => res({ version: 1 })));
+      return Promise.resolve({ version: 2 });
     });
     fixture.detectChanges();
     tick();
@@ -313,7 +319,7 @@ describe('FormularioComponent — autoguardado', () => {
   }));
 
   it('"Nuevo registro" justo después de escribir guarda primero lo pendiente del registro anterior', fakeAsync(() => {
-    servicioFalso.guardar.and.callFake(async r => r);
+    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
     fixture.detectChanges();
     tick();
     const idAnterior = fixture.componentInstance['registroActual'].id;
@@ -328,7 +334,7 @@ describe('FormularioComponent — autoguardado', () => {
   }));
 
   it('al salir del formulario (ngOnDestroy) guarda los cambios pendientes', fakeAsync(() => {
-    servicioFalso.guardar.and.callFake(async r => r);
+    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
     fixture.detectChanges();
     tick();
     fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.setValue('AL-SALIR');
@@ -336,5 +342,250 @@ describe('FormularioComponent — autoguardado', () => {
     fixture.destroy();
     tick(1500);
     expect(servicioFalso.guardar.calls.mostRecent().args[0].folio).toBe('AL-SALIR');
+  }));
+});
+
+describe('FormularioComponent — versiones y errores del servidor', () => {
+  let fixture: ComponentFixture<FormularioComponent>;
+  let servicioFalso: jasmine.SpyObj<RegistroService>;
+  let sesion: ReturnType<typeof sesionFalsa>;
+  const error = (status: number, codigo?: string) => new HttpErrorResponse({ status, error: { codigo } });
+  const folio = () => fixture.componentInstance.form.get('datosGenerales')!.get('folio')!;
+  const texto = () => fixture.nativeElement.textContent as string;
+
+  beforeEach(async () => {
+    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'ultimo', 'listar', 'eliminar']);
+    servicioFalso.ultimo.and.resolveTo(undefined);
+    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
+    sesion = sesionFalsa();
+
+    await TestBed.configureTestingModule({
+      imports: [FormularioComponent],
+      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, { provide: SesionService, useValue: sesion }, provideNativeDateAdapter()],
+    }).compileComponents();
+    fixture = TestBed.createComponent(FormularioComponent);
+  });
+
+  const iniciar = () => {
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+  };
+
+  it('al iniciar llama ultimo y nunca listar', fakeAsync(() => {
+    iniciar();
+    expect(servicioFalso.ultimo).toHaveBeenCalledTimes(1);
+    expect(servicioFalso.listar).not.toHaveBeenCalled();
+  }));
+
+  it('sin registros propios queda en blanco y con autosave', fakeAsync(() => {
+    iniciar();
+    expect(folio().value).toBe('');
+    folio().setValue('NUEVO');
+    tick(1500);
+    expect(servicioFalso.guardar).toHaveBeenCalled();
+  }));
+
+  it('usa la version del registro cargado', fakeAsync(() => {
+    servicioFalso.ultimo.and.resolveTo({ ...crearRegistroVacio(), version: 7 });
+    iniciar();
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    expect(servicioFalso.guardar.calls.mostRecent().args[0].version).toBe(7);
+  }));
+
+  it('dos guardados seguidos usan la version devuelta por el anterior', fakeAsync(() => {
+    iniciar();
+    fixture.componentInstance.guardarBorrador();
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    expect(servicioFalso.guardar.calls.allArgs().map(([r]) => r.version)).toEqual([0, 1]);
+  }));
+
+  it('un guardado encolado del registro anterior usa la version de ese registro', fakeAsync(() => {
+    iniciar();
+    let terminar!: () => void;
+    servicioFalso.guardar.and.callFake(r => {
+      if (r.folio === 'A1') return new Promise(res => (terminar = () => res({ version: 1 })));
+      return Promise.resolve({ version: (r.version ?? 0) + 1 });
+    });
+    const idAnterior = fixture.componentInstance['registroActual'].id;
+    folio().setValue('A1');
+    fixture.componentInstance.guardarBorrador();
+    folio().setValue('A2');
+    fixture.componentInstance.guardarBorrador();
+    fixture.componentInstance.cargarRegistro({ ...crearRegistroVacio(), folio: 'B', version: 50 });
+    fixture.componentInstance.guardarBorrador();
+    terminar();
+    tick();
+    const llamadas = servicioFalso.guardar.calls.allArgs().map(([r]) => r);
+    expect(llamadas.find(r => r.folio === 'A2' && r.id === idAnterior)?.version).toBe(1);
+    expect(llamadas.find(r => r.folio === 'B')?.version).toBe(50);
+    tick(1500);
+  }));
+
+  it('con 409 conflicto deja de autoguardar, avisa y conserva el formulario', fakeAsync(() => {
+    iniciar();
+    servicioFalso.guardar.and.rejectWith(error(409, 'conflicto'));
+    folio().setValue('MI-CAMBIO');
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    fixture.detectChanges();
+    expect(texto()).toContain('Otra persona modificó este registro');
+    expect(folio().value).toBe('MI-CAMBIO');
+
+    servicioFalso.guardar.calls.reset();
+    folio().setValue('OTRO-CAMBIO');
+    tick(1500);
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    expect(servicioFalso.guardar).not.toHaveBeenCalled();
+  }));
+
+  it('Recargar trae la versión del servidor y reactiva el autosave', fakeAsync(() => {
+    iniciar();
+    servicioFalso.guardar.and.rejectWith(error(409, 'conflicto'));
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    fixture.detectChanges();
+
+    const id = fixture.componentInstance['registroActual'].id;
+    servicioFalso.obtener.and.resolveTo({ ...crearRegistroVacio(), id, folio: 'DEL-OTRO', version: 9 });
+    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
+    fixture.nativeElement.querySelector('button.recargar').click();
+    tick();
+    fixture.detectChanges();
+
+    expect(folio().value).toBe('DEL-OTRO');
+    expect(texto()).not.toContain('Otra persona modificó este registro');
+    servicioFalso.guardar.calls.reset();
+    folio().setValue('SIGO');
+    tick(1500);
+    expect(servicioFalso.guardar.calls.mostRecent().args[0].version).toBe(9);
+  }));
+
+  it('con 409 eliminado avisa y deja de autoguardar', fakeAsync(() => {
+    iniciar();
+    servicioFalso.guardar.and.rejectWith(error(409, 'eliminado'));
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    fixture.detectChanges();
+    expect(texto()).toContain('Este registro fue eliminado');
+
+    servicioFalso.guardar.calls.reset();
+    folio().setValue('X');
+    tick(1500);
+    expect(servicioFalso.guardar).not.toHaveBeenCalled();
+  }));
+
+  it('un 409 de un guardado del registro anterior no bloquea el registro actual', fakeAsync(() => {
+    iniciar();
+    let rechazar!: () => void;
+    servicioFalso.guardar.and.returnValue(new Promise((_, rej) => (rechazar = () => rej(error(409, 'conflicto')))));
+    fixture.componentInstance.guardarBorrador();
+    fixture.componentInstance.nuevoRegistro();
+    rechazar();
+    tick();
+    fixture.detectChanges();
+    expect(texto()).not.toContain('Otra persona modificó este registro');
+    tick(1500);
+  }));
+
+  it('"Enviar al Historial" no continúa si el registro quedó bloqueado por un choque', fakeAsync(() => {
+    iniciar();
+    spyOn(window, 'print');
+    servicioFalso.guardar.and.rejectWith(error(409, 'conflicto'));
+    let emitido = false;
+    fixture.componentInstance.enviarAlHistorial.subscribe(() => (emitido = true));
+    fixture.componentInstance.enviarYVerHistorial();
+    tick();
+    expect(emitido).toBeFalse();
+    expect(window.print).not.toHaveBeenCalled();
+  }));
+
+  it('con 401 conserva lo pendiente y lo reenvía al volver la sesión', fakeAsync(() => {
+    iniciar();
+    servicioFalso.guardar.and.rejectWith(error(401));
+    folio().setValue('CAPTURA');
+    sesion.sesionVencida.set(true);
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.estadoGuardado).toBe('Sesión vencida');
+
+    servicioFalso.guardar.calls.reset();
+    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
+    sesion.sesionVencida.set(false);
+    fixture.detectChanges();
+    tick();
+    expect(servicioFalso.guardar.calls.mostRecent().args[0].folio).toBe('CAPTURA');
+    expect(fixture.componentInstance.estadoGuardado).toContain('Guardado');
+  }));
+
+  it('con 413 muestra que el registro es demasiado grande', fakeAsync(() => {
+    iniciar();
+    servicioFalso.guardar.and.rejectWith(error(413));
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    fixture.detectChanges();
+    expect(texto()).toContain('demasiado grande');
+  }));
+});
+
+describe('FormularioComponent — al abrir desde el Historial falla la carga', () => {
+  let fixture: ComponentFixture<FormularioComponent>;
+  let servicioFalso: jasmine.SpyObj<RegistroService>;
+  const registro = { ...crearRegistroVacio(), folio: 'ABIERTO' };
+
+  beforeEach(async () => {
+    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'ultimo', 'listar', 'eliminar']);
+    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
+    await TestBed.configureTestingModule({
+      imports: [FormularioComponent],
+      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, { provide: SesionService, useValue: sesionFalsa() }, provideNativeDateAdapter()],
+    }).compileComponents();
+    fixture = TestBed.createComponent(FormularioComponent);
+    fixture.componentInstance.registroInicial = registro;
+  });
+
+  it('si falla obtener al abrir, no se autoguarda sobre ese registro', fakeAsync(() => {
+    servicioFalso.obtener.and.rejectWith(new Error('sin conexión'));
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).toContain('No se pudo abrir el trámite');
+    expect(fixture.nativeElement.querySelector('app-seccion-paso')).toBeFalsy();
+    fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.setValue('X');
+    tick(1500);
+    expect(servicioFalso.guardar).not.toHaveBeenCalled();
+  }));
+
+  it('Reintentar abre el trámite si el servidor ya responde', fakeAsync(() => {
+    servicioFalso.obtener.and.rejectWith(new Error('sin conexión'));
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+
+    servicioFalso.obtener.and.resolveTo(registro);
+    fixture.nativeElement.querySelector('button.reintentar').click();
+    tick();
+    fixture.detectChanges();
+    expect(fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.value).toBe('ABIERTO');
+    expect(fixture.nativeElement.querySelector('app-seccion-paso')).toBeTruthy();
+  }));
+
+  it('si el trámite ya no existe lo dice y permite empezar uno nuevo', fakeAsync(() => {
+    servicioFalso.obtener.and.resolveTo(undefined);
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain('Ese trámite ya no existe');
+
+    fixture.nativeElement.querySelector('button.empezar-nuevo').click();
+    tick();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-seccion-paso')).toBeTruthy();
+    expect(fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.value).toBe('');
   }));
 });

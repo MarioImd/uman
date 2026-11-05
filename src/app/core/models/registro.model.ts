@@ -1,5 +1,7 @@
 export interface RegistroAtencionPrehospitalaria {
   id: string;
+  /** Versión del servidor; detecta si otra persona cambió el registro. 0 o ausente = nuevo. */
+  version?: number;
   fechaCreacion: string;
   estado: string;
   ciudad: string;
@@ -26,6 +28,23 @@ export interface RegistroAtencionPrehospitalaria {
   signosVitales: Record<string, unknown>[];
   manejoFarmacologico: Record<string, unknown>[];
   vehiculosInvolucrados: Record<string, unknown>[];
+}
+
+/** Fila ligera del Historial: lo que devuelve la lista, sin secciones ni imágenes. */
+export interface RegistroResumen {
+  id: string;
+  folio: string;
+  ciudad: string;
+  paciente: string;
+  fechaCreacion: string;
+}
+
+/** Una página de resultados del servidor. */
+export interface Pagina<T> {
+  items: T[];
+  total: number;
+  pagina: number;
+  porPagina: number;
 }
 
 export function crearRegistroVacio(): RegistroAtencionPrehospitalaria {

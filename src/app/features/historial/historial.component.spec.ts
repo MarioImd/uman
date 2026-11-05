@@ -2,9 +2,17 @@ import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testin
 import { HistorialComponent } from './historial.component';
 import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.service';
 import { ExcelExportadorService } from '../exportacion/excel-exportador.service';
-import { crearRegistroVacio, RegistroAtencionPrehospitalaria } from '../../core/models/registro.model';
+import { crearRegistroVacio, Pagina, RegistroAtencionPrehospitalaria, RegistroResumen } from '../../core/models/registro.model';
 
-function registroDePrueba(datos: Partial<RegistroAtencionPrehospitalaria> = {}): RegistroAtencionPrehospitalaria {
+function resumen(datos: Partial<RegistroResumen> = {}): RegistroResumen {
+  return { id: crypto.randomUUID(), folio: '', ciudad: '', paciente: '', fechaCreacion: '2026-01-01T10:00:00.000Z', ...datos };
+}
+
+function pagina(items: RegistroResumen[], total = items.length, numero = 1): Pagina<RegistroResumen> {
+  return { items, total, pagina: numero, porPagina: 20 };
+}
+
+function completo(datos: Partial<RegistroAtencionPrehospitalaria> = {}): RegistroAtencionPrehospitalaria {
   return { ...crearRegistroVacio(), ...datos };
 }
 
@@ -13,8 +21,21 @@ describe('HistorialComponent', () => {
   let servicioFalso: jasmine.SpyObj<RegistroService>;
   let excelExportadorFalso: jasmine.SpyObj<ExcelExportadorService>;
 
+  const iniciar = () => {
+    fixture.detectChanges();
+    tick();
+    fixture.detectChanges();
+  };
+  const texto = () => fixture.nativeElement.textContent as string;
+  const boton = (selector: string): HTMLButtonElement => fixture.nativeElement.querySelector(selector);
+  const escribir = (valor: string) => {
+    const entrada: HTMLInputElement = fixture.nativeElement.querySelector('.buscador input');
+    entrada.value = valor;
+    entrada.dispatchEvent(new Event('input'));
+  };
+
   beforeEach(async () => {
-    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'listar', 'eliminar']);
+    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'ultimo', 'listar', 'eliminar']);
     excelExportadorFalso = jasmine.createSpyObj<ExcelExportadorService>('ExcelExportadorService', ['exportar']);
 
     await TestBed.configureTestingModule({
@@ -29,164 +50,231 @@ describe('HistorialComponent', () => {
   });
 
   it('muestra "Todavía no hay trámites guardados." cuando el historial está vacío', fakeAsync(() => {
-    servicioFalso.listar.and.resolveTo([]);
-    fixture.detectChanges();
-    tick();
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain('Todavía no hay trámites guardados.');
+    servicioFalso.listar.and.resolveTo(pagina([]));
+    iniciar();
+    expect(texto()).toContain('Todavía no hay trámites guardados.');
     expect(fixture.nativeElement.querySelector('.tabla-historial')).toBeFalsy();
   }));
 
-  it('lista los trámites guardados del más reciente al más antiguo, con folio/fecha/paciente/ciudad', fakeAsync(() => {
-    const viejo = registroDePrueba({
-      folio: 'F-1', ciudad: 'Cd. Juárez', fechaCreacion: '2026-01-01T10:00:00.000Z',
-      datosPaciente: { nombreOMediaFiliacion: 'Juan Pérez' },
-    });
-    const nuevo = registroDePrueba({
-      folio: 'F-2', ciudad: 'Chihuahua', fechaCreacion: '2026-02-01T10:00:00.000Z',
-      datosPaciente: { nombreOMediaFiliacion: 'Ana López' },
-    });
-    servicioFalso.listar.and.resolveTo([viejo, nuevo]);
-    fixture.detectChanges();
-    tick();
-    fixture.detectChanges();
-
-    const filas = fixture.nativeElement.querySelectorAll('.tabla-historial tbody tr');
-    expect(filas.length).toBe(2);
-    expect(filas[0].textContent).toContain('F-2');
-    expect(filas[0].textContent).toContain('Ana López');
-    expect(filas[0].textContent).toContain('Chihuahua');
-    expect(filas[1].textContent).toContain('F-1');
-    expect(filas[1].textContent).toContain('Juan Pérez');
+  it('carga la página 1 y muestra el total real', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([resumen({ folio: 'F-2', paciente: 'Ana López', ciudad: 'Chihuahua' })], 45));
+    iniciar();
+    expect(servicioFalso.listar).toHaveBeenCalledOnceWith(1, '');
+    expect(texto()).toContain('45 trámites guardados');
+    const fila = fixture.nativeElement.querySelector('.tabla-historial tbody tr');
+    expect(fila.textContent).toContain('F-2');
+    expect(fila.textContent).toContain('Ana López');
+    expect(fila.textContent).toContain('Chihuahua');
   }));
 
-  it('muestra "(sin nombre)" cuando el trámite no tiene nombre de paciente capturado', fakeAsync(() => {
-    servicioFalso.listar.and.resolveTo([registroDePrueba({ folio: 'F-3' })]);
-    fixture.detectChanges();
-    tick();
-    fixture.detectChanges();
-
+  it('muestra "(sin nombre)" cuando el trámite no tiene nombre de paciente', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([resumen({ folio: 'F-3' })]));
+    iniciar();
     expect(fixture.nativeElement.querySelector('.tabla-historial tbody tr').textContent).toContain('(sin nombre)');
   }));
 
-  it('el botón "Abrir" emite el registro elegido', fakeAsync(() => {
-    const registro = registroDePrueba({ folio: 'F-4' });
-    servicioFalso.listar.and.resolveTo([registro]);
-    fixture.detectChanges();
+  it('cambiar de página pide esa página', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([resumen()], 45));
+    iniciar();
+    expect(texto()).toContain('Página 1 de 3');
+    boton('.paginador-siguiente').click();
     tick();
     fixture.detectChanges();
+    expect(servicioFalso.listar).toHaveBeenCalledWith(2, '');
+    expect(texto()).toContain('Página 2 de 3');
+  }));
+
+  it('buscar espera 300 ms y vuelve a la página 1', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([resumen()], 45));
+    iniciar();
+    boton('.paginador-siguiente').click();
+    tick();
+    fixture.detectChanges();
+    servicioFalso.listar.calls.reset();
+
+    escribir('per');
+    tick(299);
+    expect(servicioFalso.listar).not.toHaveBeenCalled();
+    tick(1);
+    expect(servicioFalso.listar).toHaveBeenCalledOnceWith(1, 'per');
+  }));
+
+  it('una respuesta vieja no reemplaza a la nueva', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([resumen({ folio: 'INICIAL' })]));
+    iniciar();
+
+    let responderVieja!: (p: Pagina<RegistroResumen>) => void;
+    servicioFalso.listar.and.returnValue(new Promise(r => (responderVieja = r)));
+    escribir('vieja');
+    tick(300);
+
+    servicioFalso.listar.and.resolveTo(pagina([resumen({ folio: 'NUEVA' })]));
+    escribir('nueva');
+    tick(300);
+    fixture.detectChanges();
+
+    responderVieja(pagina([resumen({ folio: 'VIEJA' })]));
+    tick();
+    fixture.detectChanges();
+    expect(texto()).toContain('NUEVA');
+    expect(texto()).not.toContain('VIEJA');
+  }));
+
+  it('sin resultados de búsqueda lo dice y conserva el buscador', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([resumen()]));
+    iniciar();
+    servicioFalso.listar.and.resolveTo(pagina([]));
+    escribir('nada');
+    tick(300);
+    fixture.detectChanges();
+    expect(texto()).toContain('Ningún trámite coincide con la búsqueda.');
+    expect(texto()).not.toContain('Todavía no hay trámites');
+    expect(fixture.nativeElement.querySelector('.buscador input')).toBeTruthy();
+  }));
+
+  it('Abrir pide el registro completo y lo emite', fakeAsync(() => {
+    const fila = resumen({ folio: 'F-4' });
+    const registro = completo({ id: fila.id, folio: 'F-4' });
+    servicioFalso.listar.and.resolveTo(pagina([fila]));
+    servicioFalso.obtener.and.resolveTo(registro);
+    iniciar();
 
     let emitido: RegistroAtencionPrehospitalaria | undefined;
     fixture.componentInstance.abrir.subscribe(r => (emitido = r));
+    boton('button.abrir').click();
+    tick();
 
-    const boton: HTMLButtonElement = fixture.nativeElement.querySelector('button.abrir');
-    boton.click();
-
+    expect(servicioFalso.obtener).toHaveBeenCalledOnceWith(fila.id);
     expect(emitido).toBe(registro);
   }));
 
-  it('el botón "Exportar PDF" arma un snapshot anidado (datosGenerales.folio) y llama a window.print()', fakeAsync(() => {
-    const registro = registroDePrueba({ folio: 'F-5', estado: 'Chihuahua', ciudad: 'Cd. Juárez' });
-    servicioFalso.listar.and.resolveTo([registro]);
-    fixture.detectChanges();
+  it('si falla obtener muestra error y no emite abrir', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([resumen()]));
+    servicioFalso.obtener.and.rejectWith(new Error('sin conexión'));
+    iniciar();
+
+    let emitido = false;
+    fixture.componentInstance.abrir.subscribe(() => (emitido = true));
+    boton('button.abrir').click();
     tick();
     fixture.detectChanges();
 
-    spyOn(window, 'print');
-    const boton: HTMLButtonElement = fixture.nativeElement.querySelector('button.exportar-pdf');
-    boton.click();
+    expect(emitido).toBeFalse();
+    expect(texto()).toContain('No se pudo cargar el trámite');
+  }));
 
+  it('si el trámite ya no existe lo avisa y actualiza la lista', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([resumen()]));
+    servicioFalso.obtener.and.resolveTo(undefined);
+    iniciar();
+    servicioFalso.listar.calls.reset();
+    boton('button.abrir').click();
+    tick();
+    fixture.detectChanges();
+    expect(texto()).toContain('Ese trámite ya no existe');
+    expect(servicioFalso.listar).toHaveBeenCalled();
+  }));
+
+  it('Exportar PDF pide el registro completo, arma el snapshot y llama a window.print()', fakeAsync(() => {
+    const fila = resumen();
+    servicioFalso.listar.and.resolveTo(pagina([fila]));
+    servicioFalso.obtener.and.resolveTo(completo({ id: fila.id, folio: 'F-5', estado: 'Chihuahua' }));
+    iniciar();
+
+    spyOn(window, 'print');
+    boton('button.exportar-pdf').click();
+    tick();
+
+    expect(servicioFalso.obtener).toHaveBeenCalledOnceWith(fila.id);
     expect(window.print).toHaveBeenCalled();
     expect((fixture.componentInstance.snapshotParaImpresion as any).datosGenerales.folio).toBe('F-5');
   }));
 
-  it('el botón "Exportar Excel" llama a ExcelExportadorService.exportar() con el registro de esa fila', fakeAsync(() => {
-    const registro = registroDePrueba({ folio: 'F-6' });
-    servicioFalso.listar.and.resolveTo([registro]);
-    fixture.detectChanges();
-    tick();
-    fixture.detectChanges();
+  it('Exportar Excel pide el registro completo y lo pasa al exportador', fakeAsync(() => {
+    const fila = resumen();
+    const registro = completo({ id: fila.id });
+    servicioFalso.listar.and.resolveTo(pagina([fila]));
+    servicioFalso.obtener.and.resolveTo(registro);
+    iniciar();
 
-    const boton: HTMLButtonElement = fixture.nativeElement.querySelector('button.exportar-excel');
-    boton.click();
+    boton('button.exportar-excel').click();
+    tick();
 
     expect(excelExportadorFalso.exportar).toHaveBeenCalledWith(registro);
   }));
 
-  it('el botón "Eliminar" pide confirmación, borra el registro y lo quita de la lista', fakeAsync(() => {
-    const registro = registroDePrueba({ folio: 'F-7' });
-    servicioFalso.listar.and.resolveTo([registro]);
+  it('Eliminar pide confirmación, borra y recarga la página', fakeAsync(() => {
+    const fila = resumen({ folio: 'F-7' });
+    servicioFalso.listar.and.resolveTo(pagina([fila]));
     servicioFalso.eliminar.and.resolveTo();
-    fixture.detectChanges();
-    tick();
-    fixture.detectChanges();
+    iniciar();
 
     spyOn(window, 'confirm').and.returnValue(true);
-    const boton: HTMLButtonElement = fixture.nativeElement.querySelector('button.eliminar');
-    boton.click();
+    servicioFalso.listar.and.resolveTo(pagina([]));
+    boton('button.eliminar').click();
     tick();
     fixture.detectChanges();
 
     expect(window.confirm).toHaveBeenCalled();
-    expect(servicioFalso.eliminar).toHaveBeenCalledWith(registro.id);
-    expect(fixture.nativeElement.textContent).toContain('Todavía no hay trámites guardados.');
+    expect(servicioFalso.eliminar).toHaveBeenCalledWith(fila.id);
+    expect(texto()).toContain('Todavía no hay trámites guardados.');
   }));
 
-  it('el botón "Eliminar" no borra nada si el usuario cancela la confirmación', fakeAsync(() => {
-    const registro = registroDePrueba({ folio: 'F-8' });
-    servicioFalso.listar.and.resolveTo([registro]);
-    fixture.detectChanges();
+  it('eliminar la última fila de la última página carga la anterior', fakeAsync(() => {
+    servicioFalso.listar.and.callFake(async n => pagina([resumen({ folio: 'P' + n })], 41, n));
+    servicioFalso.eliminar.and.resolveTo();
+    iniciar();
+    boton('.paginador-siguiente').click();
     tick();
     fixture.detectChanges();
-
-    spyOn(window, 'confirm').and.returnValue(false);
-    const boton: HTMLButtonElement = fixture.nativeElement.querySelector('button.eliminar');
-    boton.click();
-    tick();
-
-    expect(servicioFalso.eliminar).not.toHaveBeenCalled();
-    expect(fixture.componentInstance.registros.length).toBe(1);
-  }));
-
-  it('si listar() rechaza la promesa, muestra un error de conexión con "Reintentar" (no "no hay trámites")', fakeAsync(() => {
-    servicioFalso.listar.and.rejectWith(new Error('servidor apagado'));
-    fixture.detectChanges();
+    boton('.paginador-siguiente').click();
     tick();
     fixture.detectChanges();
+    expect(texto()).toContain('Página 3 de 3');
 
-    expect(fixture.nativeElement.textContent).toContain('No se pudo conectar con el servidor');
-    expect(fixture.nativeElement.textContent).not.toContain('Todavía no hay trámites guardados.');
-
-    servicioFalso.listar.and.resolveTo([registroDePrueba({ folio: 'F-REINTENTO' })]);
-    fixture.nativeElement.querySelector('button.reintentar').click();
-    tick();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('F-REINTENTO');
-  }));
-
-  it('si eliminar() falla, conserva el trámite en la lista y muestra un aviso', fakeAsync(() => {
-    servicioFalso.listar.and.resolveTo([registroDePrueba({ folio: 'F-9' })]);
-    servicioFalso.eliminar.and.rejectWith(new Error('sin conexión'));
-    fixture.detectChanges();
-    tick();
-    fixture.detectChanges();
-
+    // Tras eliminar, la página 3 ya no tiene filas.
+    servicioFalso.listar.and.callFake(async n => (n === 3 ? pagina([], 40, 3) : pagina([resumen({ folio: 'P2' })], 40, n)));
     spyOn(window, 'confirm').and.returnValue(true);
-    fixture.nativeElement.querySelector('button.eliminar').click();
+    boton('button.eliminar').click();
     tick();
     fixture.detectChanges();
 
-    expect(fixture.componentInstance.registros.length).toBe(1);
-    expect(fixture.nativeElement.textContent).toContain('No se pudo eliminar el trámite');
+    expect(servicioFalso.listar.calls.mostRecent().args[0]).toBe(2);
+    expect(texto()).toContain('Página 2 de 2');
+    expect(texto()).toContain('P2');
   }));
 
-  it('el buscador filtra por folio, paciente o ciudad', fakeAsync(() => {
-    servicioFalso.listar.and.resolveTo([registroDePrueba({ folio: 'AAA-1' }), registroDePrueba({ folio: 'BBB-2' })]);
-    fixture.detectChanges();
+  it('Eliminar no borra nada si el usuario cancela', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([resumen()]));
+    iniciar();
+    spyOn(window, 'confirm').and.returnValue(false);
+    boton('button.eliminar').click();
     tick();
-    fixture.componentInstance.busqueda = 'bbb';
+    expect(servicioFalso.eliminar).not.toHaveBeenCalled();
+  }));
+
+  it('si eliminar falla, conserva el trámite y muestra un aviso', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([resumen({ folio: 'F-9' })]));
+    servicioFalso.eliminar.and.rejectWith(new Error('sin conexión'));
+    iniciar();
+    spyOn(window, 'confirm').and.returnValue(true);
+    boton('button.eliminar').click();
+    tick();
     fixture.detectChanges();
-    expect(fixture.componentInstance.registrosFiltrados().map(r => r.folio)).toEqual(['BBB-2']);
+    expect(texto()).toContain('F-9');
+    expect(texto()).toContain('No se pudo eliminar el trámite');
+  }));
+
+  it('si listar falla muestra error de conexión con "Reintentar"', fakeAsync(() => {
+    servicioFalso.listar.and.rejectWith(new Error('servidor apagado'));
+    iniciar();
+    expect(texto()).toContain('No se pudo conectar con el servidor');
+    expect(texto()).not.toContain('Todavía no hay trámites guardados.');
+
+    servicioFalso.listar.and.resolveTo(pagina([resumen({ folio: 'F-REINTENTO' })]));
+    boton('button.reintentar').click();
+    tick();
+    fixture.detectChanges();
+    expect(texto()).toContain('F-REINTENTO');
   }));
 });

@@ -18,33 +18,61 @@ describe('ApiRegistroService', () => {
 
   afterEach(() => http.verify());
 
-  it('guardar() hace PUT al id del registro', async () => {
+  it('usa una URL relativa para funcionar en cualquier carpeta', () => {
+    expect(API_REGISTROS_URL).toBe('api/registros');
+  });
+
+  it('guardar() hace POST al id del registro y devuelve la version', async () => {
     const registro = crearRegistroVacio();
     const promesa = servicio.guardar(registro);
     const req = http.expectOne(`${API_REGISTROS_URL}/${registro.id}`);
-    expect(req.request.method).toBe('PUT');
+    expect(req.request.method).toBe('POST');
     expect(req.request.body).toEqual(registro);
-    req.flush(registro);
-    expect(await promesa).toEqual(registro);
+    req.flush({ version: 1 });
+    expect(await promesa).toEqual({ version: 1 });
   });
 
-  it('obtener() devuelve undefined si el backend responde 404', async () => {
+  it('obtener() devuelve undefined si el servidor responde 404', async () => {
     const promesa = servicio.obtener('no-existe');
     http.expectOne(`${API_REGISTROS_URL}/no-existe`).flush(null, { status: 404, statusText: 'Not Found' });
     expect(await promesa).toBeUndefined();
   });
 
-  it('listar() hace GET a la colección', async () => {
-    const promesa = servicio.listar();
-    http.expectOne(API_REGISTROS_URL).flush([]);
-    expect(await promesa).toEqual([]);
+  it('ultimo() devuelve el registro del servidor', async () => {
+    const registro = crearRegistroVacio();
+    const promesa = servicio.ultimo();
+    http.expectOne(`${API_REGISTROS_URL}/ultimo`).flush(registro);
+    expect(await promesa).toEqual(registro);
   });
 
-  it('eliminar() hace DELETE al id', async () => {
+  it('ultimo() devuelve undefined con 404', async () => {
+    const promesa = servicio.ultimo();
+    http.expectOne(`${API_REGISTROS_URL}/ultimo`).flush(null, { status: 404, statusText: 'Not Found' });
+    expect(await promesa).toBeUndefined();
+  });
+
+  it('ultimo() deja pasar otros errores', async () => {
+    const promesa = servicio.ultimo();
+    http.expectOne(`${API_REGISTROS_URL}/ultimo`).flush(null, { status: 500, statusText: 'Error' });
+    await expectAsync(promesa).toBeRejected();
+  });
+
+  it('listar() llama api/registros con pagina y q', async () => {
+    const pagina = { items: [], total: 0, pagina: 3, porPagina: 20 };
+    const promesa = servicio.listar(3, 'pérez');
+    const req = http.expectOne(r => r.url === API_REGISTROS_URL);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.params.get('pagina')).toBe('3');
+    expect(req.request.params.get('q')).toBe('pérez');
+    req.flush(pagina);
+    expect(await promesa).toEqual(pagina);
+  });
+
+  it('eliminar hace POST a api/registros/{id}/eliminar', async () => {
     const promesa = servicio.eliminar('abc');
-    const req = http.expectOne(`${API_REGISTROS_URL}/abc`);
-    expect(req.request.method).toBe('DELETE');
-    req.flush(null, { status: 204, statusText: 'No Content' });
+    const req = http.expectOne(`${API_REGISTROS_URL}/abc/eliminar`);
+    expect(req.request.method).toBe('POST');
+    req.flush({ ok: true });
     await promesa;
   });
 });
