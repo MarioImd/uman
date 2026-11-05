@@ -16,13 +16,13 @@
   width: 42px; height: 42px; border-radius: 50%; background: #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
 }
-.marca-logo svg { width: 34px; height: 34px; }
+.marca-logo app-logo-umam { width: 34px; height: 34px; }
 .marca-texto { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .marca-texto strong { font-size: 1.1rem; letter-spacing: 0.06em; }
 .marca-texto span { font-size: 0.78rem; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 // Pestañas tipo "pastilla" sobre el encabezado azul.
-.navegacion-vistas { display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(0, 0, 0, 0.15); }
+.navegacion-vistas { display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 24px; background: rgba(0, 0, 0, 0.15); }
 .pestana {
   display: inline-flex;
   align-items: center;
@@ -43,6 +43,15 @@
 .pestana mat-icon { font-size: 20px; width: 20px; height: 20px; }
 .pestana:hover { color: #fff; }
 .pestana.activa { background: #fff; color: var(--umam-header-oscuro); box-shadow: var(--umam-sombra-suave); }
+
+// Usuario actual y botón de salir.
+.cuenta { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.usuario-actual { font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+.salir {
+  display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px;
+  border: none; border-radius: 50%; background: transparent; color: #fff; cursor: pointer;
+}
+.salir:hover { background: rgba(0, 0, 0, 0.15); }
 
 @media (max-width: 480px) {
   .marca-texto span { display: none; }

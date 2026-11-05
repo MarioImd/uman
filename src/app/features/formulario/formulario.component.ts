@@ -375,6 +375,12 @@ export class FormularioComponent implements OnInit, OnDestroy {
     this.guardar();
   }
 
+  /** Guarda lo que falte y espera a que termine; App lo usa antes de cerrar sesión. */
+  guardarPendientes(): Promise<void> {
+    if (this.cambiosPendientes) this.guardar();
+    return this.colaGuardado;
+  }
+
   /**
    * Toma la foto del formulario EN ESTE MOMENTO (sincrónico, antes de
    * cualquier cambio de registro) y la encola para enviarse al servidor.

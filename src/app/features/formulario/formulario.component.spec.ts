@@ -522,6 +522,22 @@ describe('FormularioComponent — versiones y errores del servidor', () => {
     expect(fixture.componentInstance.estadoGuardado).toContain('Guardado');
   }));
 
+  it('guardarPendientes guarda lo escrito y espera a que termine', fakeAsync(() => {
+    iniciar();
+    let terminar!: () => void;
+    servicioFalso.guardar.and.returnValue(new Promise(res => (terminar = () => res({ version: 1 }))));
+    folio().setValue('PENDIENTE');
+    let listo = false;
+    fixture.componentInstance.guardarPendientes().then(() => (listo = true));
+    tick();
+    expect(servicioFalso.guardar.calls.mostRecent().args[0].folio).toBe('PENDIENTE');
+    expect(listo).toBeFalse();
+    terminar();
+    tick();
+    expect(listo).toBeTrue();
+    tick(1500);
+  }));
+
   it('con 413 muestra que el registro es demasiado grande', fakeAsync(() => {
     iniciar();
     servicioFalso.guardar.and.rejectWith(error(413));

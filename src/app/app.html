@@ -1,32 +1,51 @@
-<!-- Encabezado común a las dos vistas: marca + pestañas Formulario / Historial. -->
-<header class="barra-app">
-  <div class="marca">
-    <!-- Logo UMAM (el mismo de la hoja imprimible, pdf-vista.component.ts). -->
-    <span class="marca-logo">
-      <svg viewBox="0 0 40 40" aria-hidden="true">
-        <circle cx="20" cy="20" r="18" fill="none" stroke="#0d3a5c" stroke-width="3"/>
-        <path d="M20 6 L23 15 L32 12 L26 20 L32 28 L23 25 L20 34 L17 25 L8 28 L14 20 L8 12 L17 15 Z" fill="#0d3a5c"/>
-        <path d="M20 11 L20 29 M15 14 C 25 17, 15 23, 25 26" stroke="#fff" stroke-width="1.6" fill="none"/>
-      </svg>
-    </span>
-    <div class="marca-texto">
-      <strong>UMAM</strong>
-      <span>Registro de Atención Prehospitalaria</span>
+<ng-container *ngIf="sesion.usuario() as usuario; else sinSesion">
+  <!-- Encabezado común a todas las vistas: marca, pestañas y usuario. -->
+  <header class="barra-app">
+    <div class="marca">
+      <span class="marca-logo"><app-logo-umam></app-logo-umam></span>
+      <div class="marca-texto">
+        <strong>UMAM</strong>
+        <span>Registro de Atención Prehospitalaria</span>
+      </div>
     </div>
-  </div>
-  <nav class="navegacion-vistas">
-    <button type="button" class="pestana" [class.activa]="vista === 'formulario'" (click)="irAFormulario()">
-      <mat-icon>edit_note</mat-icon> Formulario
-    </button>
-    <button type="button" class="pestana" [class.activa]="vista === 'historial'" (click)="irAHistorial()">
-      <mat-icon>history</mat-icon> Historial
-    </button>
-  </nav>
-</header>
+    <nav class="navegacion-vistas">
+      <button type="button" class="pestana" [class.activa]="vista === 'formulario'" (click)="irAFormulario()">
+        <mat-icon>edit_note</mat-icon> Formulario
+      </button>
+      <button type="button" class="pestana" [class.activa]="vista === 'historial'" (click)="irAHistorial()">
+        <mat-icon>history</mat-icon> Historial
+      </button>
+      <ng-container *ngIf="usuario.rol === 'admin'">
+        <button type="button" class="pestana" [class.activa]="vista === 'usuarios'" (click)="irA('usuarios')">
+          <mat-icon>group</mat-icon> Usuarios
+        </button>
+        <button type="button" class="pestana" [class.activa]="vista === 'actividad'" (click)="irA('actividad')">
+          <mat-icon>fact_check</mat-icon> Actividad
+        </button>
+        <button type="button" class="pestana" [class.activa]="vista === 'eliminados'" (click)="irA('eliminados')">
+          <mat-icon>delete_sweep</mat-icon> Eliminados
+        </button>
+      </ng-container>
+    </nav>
+    <div class="cuenta">
+      <span class="usuario-actual">{{ usuario.nombre }}</span>
+      <button type="button" class="salir" (click)="salir()" aria-label="Cerrar sesión" title="Cerrar sesión">
+        <mat-icon>logout</mat-icon>
+      </button>
+    </div>
+  </header>
 
-<app-formulario
-  *ngIf="vista === 'formulario'"
-  [registroInicial]="registroACargar"
-  (enviarAlHistorial)="irAHistorial()"
-></app-formulario>
-<app-historial *ngIf="vista === 'historial'" (abrir)="abrirDesdeHistorial($event)"></app-historial>
+  <app-formulario
+    *ngIf="vista === 'formulario'"
+    [registroInicial]="registroACargar"
+    (enviarAlHistorial)="irAHistorial()"
+  ></app-formulario>
+  <app-historial *ngIf="vista === 'historial'" (abrir)="abrirDesdeHistorial($event)"></app-historial>
+
+  <!-- Encima de la app, sin destruirla: lo capturado sigue en el formulario. -->
+  <app-login *ngIf="sesion.sesionVencida()" [usuarioFijo]="usuario.usuario"></app-login>
+</ng-container>
+
+<ng-template #sinSesion>
+  <app-login *ngIf="!revisandoSesion"></app-login>
+</ng-template>
