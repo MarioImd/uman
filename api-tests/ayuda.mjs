@@ -4,18 +4,22 @@ import { execFileSync } from 'node:child_process';
 const BASE = process.env.API_URL ?? 'http://localhost:8080/api';
 export const TOKEN = 'token-de-prueba';
 
-export async function peticion(ruta, { metodo = 'GET', cuerpo, cookie, formulario } = {}) {
-  const headers = {};
+export async function peticion(ruta, { metodo = 'GET', cuerpo, cookie, formulario, crudo, tipo, headers: extra, base = BASE } = {}) {
+  const headers = { ...extra };
   if (cookie) headers.Cookie = cookie;
   let body;
-  if (formulario) {
+  if (crudo !== undefined) {
+    if (tipo) headers['Content-Type'] = tipo;
+    body = new Blob([crudo]); // Un Blob sin tipo no agrega Content-Type.
+  } else if (formulario) {
     headers['Content-Type'] = 'application/x-www-form-urlencoded';
     body = new URLSearchParams(formulario).toString();
-  } else if (cuerpo !== undefined) {
+  } else if (cuerpo !== undefined || metodo !== 'GET') {
+    // Igual que el frontend: todo POST lleva JSON, aunque sea vacío.
     headers['Content-Type'] = 'application/json';
-    body = JSON.stringify(cuerpo);
+    body = JSON.stringify(cuerpo ?? {});
   }
-  const respuesta = await fetch(`${BASE}/${ruta}`, { method: metodo, headers, body, redirect: 'manual' });
+  const respuesta = await fetch(`${base}/${ruta}`, { method: metodo, headers, body, redirect: 'manual' });
   const texto = await respuesta.text();
   let json;
   try { json = JSON.parse(texto); } catch { json = undefined; }
