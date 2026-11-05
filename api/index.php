@@ -7,6 +7,7 @@ require __DIR__ . '/http.php';
 require __DIR__ . '/sesion.php';
 require __DIR__ . '/actividad.php';
 require __DIR__ . '/registros.php';
+require __DIR__ . '/usuarios.php';
 
 try {
     $base = dirname($_SERVER['SCRIPT_NAME']);
@@ -17,6 +18,8 @@ try {
     match ($partes[0]) {
         'sesion' => rutasSesion($metodo, $partes),
         'registros' => rutasRegistros($metodo, $partes),
+        'usuarios' => rutasUsuarios($metodo, $partes),
+        'actividad' => $metodo === 'GET' ? listarActividad() : responder(404, ['error' => 'Ruta no encontrada.']),
         default => responder(404, ['error' => 'Ruta no encontrada.']),
     };
 } catch (Throwable $error) {

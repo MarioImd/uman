@@ -27,3 +27,34 @@ function registrarActividad(int $usuarioId, string $accion, string $registroId, 
          VALUES (?, ?, ?, ?, UTC_TIMESTAMP(3), UTC_TIMESTAMP(3))'
     )->execute([$usuarioId, $accion, $registroId, $folio]);
 }
+
+function listarActividad(): never
+{
+    exigirAdmin();
+    [$pagina, $porPagina, $offset] = paginacion();
+    $filtro = '1 = 1';
+    $parametros = [];
+    $texto = trim((string) ($_GET['q'] ?? ''));
+    if ($texto !== '') {
+        $filtro = '(u.usuario LIKE ? OR u.nombre LIKE ? OR a.folio LIKE ?)';
+        $parametros = array_fill(0, 3, patronBusqueda($texto));
+    }
+
+    $pdo = db();
+    $total = $pdo->prepare("SELECT COUNT(*) FROM actividad a JOIN usuarios u ON u.id = a.usuario_id WHERE $filtro");
+    $total->execute($parametros);
+    $filas = $pdo->prepare(
+        "SELECT u.usuario, a.accion, a.folio, a.inicio, a.fin FROM actividad a
+         JOIN usuarios u ON u.id = a.usuario_id WHERE $filtro
+         ORDER BY a.fin DESC, a.id DESC LIMIT $porPagina OFFSET $offset"
+    );
+    $filas->execute($parametros);
+
+    $items = array_map(fn (array $fila) => [
+        ...$fila,
+        'inicio' => fechaIso($fila['inicio']),
+        'fin' => fechaIso($fila['fin']),
+    ], $filas->fetchAll());
+
+    responder(200, ['items' => $items, 'total' => (int) $total->fetchColumn(), 'pagina' => $pagina, 'porPagina' => $porPagina]);
+}

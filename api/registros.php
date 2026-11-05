@@ -190,6 +190,46 @@ function eliminarRegistro(string $id): never
     responder(200, ['ok' => true]);
 }
 
+function listarEliminados(): never
+{
+    exigirAdmin();
+    [$pagina, $porPagina, $offset] = paginacion();
+    $pdo = db();
+    $total = (int) $pdo->query('SELECT COUNT(*) FROM registros WHERE eliminado = 1')->fetchColumn();
+    $filas = $pdo->query(
+        "SELECT r.id, r.folio, r.ciudad, r.paciente, r.fecha_creacion, r.eliminado_en, u.usuario AS eliminado_por
+         FROM registros r LEFT JOIN usuarios u ON u.id = r.eliminado_por
+         WHERE r.eliminado = 1 ORDER BY r.eliminado_en DESC, r.id LIMIT $porPagina OFFSET $offset"
+    )->fetchAll();
+
+    $items = array_map(fn (array $fila) => [
+        'id' => $fila['id'],
+        'folio' => $fila['folio'],
+        'ciudad' => $fila['ciudad'],
+        'paciente' => $fila['paciente'],
+        'fechaCreacion' => fechaIso($fila['fecha_creacion']),
+        'eliminadoPor' => $fila['eliminado_por'],
+        'eliminadoEn' => fechaIso($fila['eliminado_en']),
+    ], $filas);
+
+    responder(200, ['items' => $items, 'total' => $total, 'pagina' => $pagina, 'porPagina' => $porPagina]);
+}
+
+function restaurarRegistro(string $id): never
+{
+    $usuario = exigirAdmin();
+    $pdo = db();
+    $restaurar = $pdo->prepare('UPDATE registros SET eliminado = 0, eliminado_por = NULL, eliminado_en = NULL WHERE id = ? AND eliminado = 1');
+    $restaurar->execute([$id]);
+    if ($restaurar->rowCount() === 0) {
+        responder(404, ['error' => 'Registro eliminado no encontrado.']);
+    }
+    $consulta = $pdo->prepare('SELECT folio FROM registros WHERE id = ?');
+    $consulta->execute([$id]);
+    registrarActividad($usuario['id'], 'restauro', $id, (string) $consulta->fetchColumn());
+    responder(200, ['ok' => true]);
+}
+
 function rutasRegistros(string $metodo, array $partes): never
 {
     $id = $partes[1] ?? '';
@@ -200,6 +240,9 @@ function rutasRegistros(string $metodo, array $partes): never
     if ($metodo === 'GET' && $id === 'ultimo') {
         ultimoRegistro();
     }
+    if ($metodo === 'GET' && $id === 'eliminados') {
+        listarEliminados();
+    }
     if (preg_match('/^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i', $id) === 1) {
         if ($metodo === 'GET' && $accion === '') {
             obtenerRegistro($id);
@@ -209,6 +252,9 @@ function rutasRegistros(string $metodo, array $partes): never
         }
         if ($metodo === 'POST' && $accion === 'eliminar') {
             eliminarRegistro($id);
+        }
+        if ($metodo === 'POST' && $accion === 'restaurar') {
+            restaurarRegistro($id);
         }
     }
     responder(404, ['error' => 'Ruta no encontrada.']);
