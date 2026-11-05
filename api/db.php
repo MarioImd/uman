@@ -41,6 +41,19 @@ function db(): PDO
     return $pdo;
 }
 
+/** Extensiones de PHP que la app necesita y el servidor no tiene. */
+function extensionesFaltantes(): array
+{
+    $faltan = [];
+    if (!function_exists('mb_substr')) {
+        $faltan[] = 'mbstring';
+    }
+    if (!extension_loaded('pdo_mysql')) {
+        $faltan[] = 'pdo_mysql';
+    }
+    return $faltan;
+}
+
 /** Convierte un valor de php.ini como "16M" a bytes. */
 function bytesDeIni(string $valor): int
 {

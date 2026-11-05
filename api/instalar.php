@@ -48,6 +48,11 @@ function avisoDisplayErrores(): string
         : '';
 }
 
+$faltan = extensionesFaltantes();
+if ($faltan !== []) {
+    pagina(500, '<p><strong>Al servidor le falta la extensión de PHP: ' . implode(', ', $faltan) . '.</strong> Actívala en Select PHP Version o pídela a soporte, y vuelve a abrir esta página.</p>');
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     pagina(200, '<form method="post"><label>Token de instalación <input type="password" name="token" required></label> <button>Instalar</button></form>');
 }
