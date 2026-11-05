@@ -38,17 +38,18 @@ function exigirSesion(): array
     $vencida = time() - ($_SESSION['ultima_actividad'] ?? 0) > DURACION_SESION;
     $usuario = false;
     if ($id !== null && !$vencida) {
-        $consulta = db()->prepare('SELECT id, usuario, nombre, rol FROM usuarios WHERE id = ? AND activo = 1');
+        $consulta = db()->prepare('SELECT id, usuario, nombre, rol, sesion_version FROM usuarios WHERE id = ? AND activo = 1');
         $consulta->execute([$id]);
         $usuario = $consulta->fetch();
     }
-    if ($usuario === false) {
+    if ($usuario === false || (int) $usuario['sesion_version'] !== ($_SESSION['sesion_version'] ?? 0)) {
         destruirSesion();
         responder(401, ['error' => 'Sesión no válida.']);
     }
     $_SESSION['ultima_actividad'] = time();
     // Libera el archivo de sesión para no bloquear las demás peticiones del usuario.
     session_write_close();
+    unset($usuario['sesion_version']);
     $usuario['id'] = (int) $usuario['id'];
     return $usuario;
 }
@@ -76,7 +77,7 @@ function entrar(): never
         responder(429, ['error' => 'Demasiados intentos. Espera 15 minutos.']);
     }
 
-    $consulta = $pdo->prepare('SELECT id, usuario, nombre, rol, password_hash FROM usuarios WHERE usuario = ? AND activo = 1');
+    $consulta = $pdo->prepare('SELECT id, usuario, nombre, rol, password_hash, sesion_version FROM usuarios WHERE usuario = ? AND activo = 1');
     $consulta->execute([$nombreUsuario]);
     $usuario = $consulta->fetch();
     // Sin usuario también se verifica contra un hash, para que el tiempo de
@@ -91,8 +92,9 @@ function entrar(): never
     iniciarSesion();
     session_regenerate_id(true);
     $_SESSION['usuario_id'] = (int) $usuario['id'];
+    $_SESSION['sesion_version'] = (int) $usuario['sesion_version'];
     $_SESSION['ultima_actividad'] = time();
-    unset($usuario['password_hash']);
+    unset($usuario['password_hash'], $usuario['sesion_version']);
     $usuario['id'] = (int) $usuario['id'];
     responder(200, $usuario);
 }

@@ -99,7 +99,7 @@ function editarUsuario(int $id): never
     $pdo->prepare('UPDATE usuarios SET nombre = ?, rol = ?, activo = ? WHERE id = ?')
         ->execute([$nombre, $rol, (int) $activo, $id]);
     if ($clave !== null) {
-        $pdo->prepare('UPDATE usuarios SET password_hash = ? WHERE id = ?')
+        $pdo->prepare('UPDATE usuarios SET password_hash = ?, sesion_version = sesion_version + 1 WHERE id = ?')
             ->execute([password_hash($clave, PASSWORD_DEFAULT), $id]);
         // La clave nueva también levanta un bloqueo por intentos fallidos.
         $pdo->prepare('DELETE FROM intentos_login WHERE usuario = ?')->execute([$actual['usuario']]);

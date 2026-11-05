@@ -4,6 +4,7 @@
 require __DIR__ . '/db.php';
 
 const MINIMO_BYTES = 32 * 1024 * 1024;
+const MINIMO_MEMORIA = 128 * 1024 * 1024;
 
 function pagina(int $estado, string $contenido): never
 {
@@ -20,15 +21,15 @@ function pagina(int $estado, string $contenido): never
 function resumenLimites(): string
 {
     $limites = [
-        'post_max_size' => bytesDeIni(ini_get('post_max_size')),
-        'memory_limit' => bytesDeIni(ini_get('memory_limit')),
-        'max_allowed_packet' => (int) db()->query('SELECT @@max_allowed_packet')->fetchColumn(),
+        'post_max_size' => [bytesDeIni(ini_get('post_max_size')), MINIMO_BYTES],
+        'memory_limit' => [bytesDeIni(ini_get('memory_limit')), MINIMO_MEMORIA],
+        'max_allowed_packet' => [(int) db()->query('SELECT @@max_allowed_packet')->fetchColumn(), MINIMO_BYTES],
     ];
     $filas = '';
-    foreach ($limites as $nombre => $bytes) {
-        $sinLimite = $bytes < 0;
+    foreach ($limites as $nombre => [$bytes, $minimo]) {
+        $sinLimite = $bytes <= 0;
         $texto = $sinLimite ? 'sin límite' : round($bytes / 1024 / 1024) . ' MB';
-        $aviso = !$sinLimite && $bytes < MINIMO_BYTES ? ' <strong>por debajo de 32 MB</strong>' : '';
+        $aviso = !$sinLimite && $bytes < $minimo ? ' <strong>por debajo de ' . $minimo / 1024 / 1024 . ' MB</strong>' : '';
         $filas .= "<li>$nombre: $texto$aviso</li>";
     }
     return "<h2>Límites del servidor</h2><ul>$filas</ul>";

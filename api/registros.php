@@ -70,7 +70,12 @@ function responderRegistro(array $fila): never
     http_response_code(200);
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store');
-    echo substr($fila['datos'], 0, -1), ',"version":', (int) $fila['version'], '}';
+    // Se envía por partes para no duplicar en memoria un registro de varios MB.
+    $largo = strlen($fila['datos']) - 1;
+    for ($inicio = 0; $inicio < $largo; $inicio += 1048576) {
+        echo substr($fila['datos'], $inicio, min(1048576, $largo - $inicio));
+    }
+    echo ',"version":', (int) $fila['version'], '}';
     exit;
 }
 
@@ -90,7 +95,7 @@ function ultimoRegistro(): never
 {
     $usuario = exigirSesion();
     $consulta = db()->prepare(
-        'SELECT datos, version FROM registros WHERE actualizado_por = ? AND eliminado = 0
+        'SELECT datos, version FROM registros WHERE creado_por = ? AND finalizado = 0 AND eliminado = 0
          ORDER BY fecha_actualizacion DESC LIMIT 1'
     );
     $consulta->execute([$usuario['id']]);
@@ -111,10 +116,23 @@ function responderChoque(string $id): never
     responder(409, ['codigo' => 'conflicto', 'error' => 'Otra persona modificó este registro.']);
 }
 
+/**
+ * ¿Rebasa lo que el servidor puede recibir o volver a leer? Guardar y, sobre
+ * todo, leer un registro ocupan varias veces su tamaño en memoria. Un post_max_size
+ * de 0 o un memory_limit de -1 significan "sin límite".
+ */
+function excedeLimites(int $bytes, int $postMaximo, int $memoria): bool
+{
+    if ($postMaximo > 0 && $bytes > $postMaximo) {
+        return true;
+    }
+    return $memoria > 0 && $bytes * 3 > $memoria;
+}
+
 function guardarRegistro(string $id): never
 {
     $usuario = exigirSesion();
-    if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > bytesDeIni(ini_get('post_max_size'))) {
+    if (excedeLimites((int) ($_SERVER['CONTENT_LENGTH'] ?? 0), bytesDeIni(ini_get('post_max_size')), bytesDeIni(ini_get('memory_limit')))) {
         responder(413, ['error' => MENSAJE_MUY_GRANDE]);
     }
     // Se guarda el JSON tal como llegó, sin volver a codificarlo, para ahorrar memoria.
@@ -136,42 +154,68 @@ function guardarRegistro(string $id): never
     $ciudad = mb_substr((string) ($datos['ciudad'] ?? ''), 0, 255);
     $nombre = $datos['datosPaciente']['nombreOMediaFiliacion'] ?? '';
     $paciente = mb_substr(is_string($nombre) ? $nombre : '', 0, 255);
+    $finalizado = empty($datos['finalizado']) ? 0 : 1;
+    $edicionId = is_string($datos['edicionId'] ?? null) ? substr($datos['edicionId'], 0, 36) : null;
     unset($datos);
 
     $pdo = db();
+    $pdo->beginTransaction();
     try {
-        if ($version === 0) {
-            $pdo->prepare(
-                'INSERT INTO registros (id, fecha_creacion, fecha_actualizacion, folio, estado, ciudad, paciente, datos, creado_por, actualizado_por)
-                 VALUES (?, ?, UTC_TIMESTAMP(3), ?, ?, ?, ?, ?, ?, ?)'
-            )->execute([$id, $fechaCreacion, $folio, $estado, $ciudad, $paciente, $crudo, $usuario['id'], $usuario['id']]);
+        if ($version === 0 && insertarRegistro($id, $fechaCreacion, $folio, $estado, $ciudad, $paciente, $crudo, $finalizado, $edicionId, $usuario['id'])) {
             registrarActividad($usuario['id'], 'creo', $id, $folio);
+            $pdo->commit();
             responder(200, ['version' => 1]);
         }
 
         // Solo guarda si nadie cambió el registro desde que esta persona lo cargó.
+        // La segunda condición cubre una respuesta perdida por mala señal: el
+        // guardado anterior sí se aplicó y el navegador no se enteró. Si esta misma
+        // pantalla fue la última en guardar, nadie más ha escrito desde entonces.
         $actualizar = $pdo->prepare(
             'UPDATE registros SET version = version + 1, fecha_actualizacion = UTC_TIMESTAMP(3), folio = ?, estado = ?,
-                ciudad = ?, paciente = ?, datos = ?, actualizado_por = ?
-             WHERE id = ? AND version = ? AND eliminado = 0'
+                ciudad = ?, paciente = ?, datos = ?, finalizado = ?, edicion_id = ?, actualizado_por = ?
+             WHERE id = ? AND eliminado = 0 AND (version = ? OR edicion_id = ?)'
         );
-        $actualizar->execute([$folio, $estado, $ciudad, $paciente, $crudo, $usuario['id'], $id, $version]);
-    } catch (PDOException $error) {
-        $codigo = (int) ($error->errorInfo[1] ?? 0);
-        if ($codigo === 1062) {
-            responderChoque($id); // Llave duplicada: el registro ya existía.
+        $actualizar->execute([$folio, $estado, $ciudad, $paciente, $crudo, $finalizado, $edicionId, $usuario['id'], $id, $version, $edicionId]);
+        if ($actualizar->rowCount() === 0) {
+            $pdo->rollBack();
+            responderChoque($id);
         }
-        if (in_array($codigo, [1153, 1301, 2006, 2013], true)) {
+
+        registrarActividad($usuario['id'], 'edito', $id, $folio);
+        $consulta = $pdo->prepare('SELECT version FROM registros WHERE id = ?');
+        $consulta->execute([$id]);
+        $vigente = (int) $consulta->fetchColumn();
+        $pdo->commit();
+        responder(200, ['version' => $vigente]);
+    } catch (PDOException $error) {
+        try {
+            $pdo->rollBack();
+        } catch (Throwable) {
+            // La conexión ya se perdió, y con ella la transacción.
+        }
+        if (in_array((int) ($error->errorInfo[1] ?? 0), [1153, 1301, 2006, 2013], true)) {
             responder(413, ['error' => MENSAJE_MUY_GRANDE]); // Rebasó max_allowed_packet.
         }
         throw $error;
     }
+}
 
-    if ($actualizar->rowCount() === 0) {
-        responderChoque($id);
+/** Crea el registro. Devuelve false si el id ya existía. */
+function insertarRegistro(string $id, string $fechaCreacion, string $folio, string $estado, string $ciudad, string $paciente, string $crudo, int $finalizado, ?string $edicionId, int $usuarioId): bool
+{
+    try {
+        db()->prepare(
+            'INSERT INTO registros (id, fecha_creacion, fecha_actualizacion, folio, estado, ciudad, paciente, datos, finalizado, edicion_id, creado_por, actualizado_por)
+             VALUES (?, ?, UTC_TIMESTAMP(3), ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([$id, $fechaCreacion, $folio, $estado, $ciudad, $paciente, $crudo, $finalizado, $edicionId, $usuarioId, $usuarioId]);
+        return true;
+    } catch (PDOException $error) {
+        if ((int) ($error->errorInfo[1] ?? 0) === 1062) {
+            return false;
+        }
+        throw $error;
     }
-    registrarActividad($usuario['id'], 'edito', $id, $folio);
-    responder(200, ['version' => $version + 1]);
 }
 
 function eliminarRegistro(string $id): never

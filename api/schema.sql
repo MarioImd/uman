@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
   password_hash VARCHAR(255) NOT NULL,
   rol ENUM('admin', 'usuario') NOT NULL DEFAULT 'usuario',
   activo TINYINT(1) NOT NULL DEFAULT 1,
+  -- Sube al cambiar la contraseña: invalida las sesiones abiertas.
+  sesion_version INT UNSIGNED NOT NULL DEFAULT 1,
   creado_en DATETIME(3) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -21,13 +23,16 @@ CREATE TABLE IF NOT EXISTS registros (
   paciente VARCHAR(255) NOT NULL DEFAULT '',
   datos LONGTEXT NOT NULL,
   version INT UNSIGNED NOT NULL DEFAULT 1,
+  -- Identifica la pantalla que guardó por última vez. Ver guardarRegistro().
+  edicion_id CHAR(36) NULL,
+  finalizado TINYINT(1) NOT NULL DEFAULT 0,
   eliminado TINYINT(1) NOT NULL DEFAULT 0,
   eliminado_por INT UNSIGNED NULL,
   eliminado_en DATETIME(3) NULL,
   creado_por INT UNSIGNED NOT NULL,
   actualizado_por INT UNSIGNED NOT NULL,
   INDEX idx_eliminado_fecha (eliminado, fecha_creacion),
-  INDEX idx_actualizado (actualizado_por, fecha_actualizacion),
+  INDEX idx_ultimo (creado_por, finalizado, eliminado, fecha_actualizacion),
   INDEX idx_folio (folio),
   FOREIGN KEY (creado_por) REFERENCES usuarios (id),
   FOREIGN KEY (actualizado_por) REFERENCES usuarios (id),
