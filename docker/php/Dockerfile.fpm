@@ -1,4 +1,4 @@
-# Apache + PHP-FPM con display_errors activado, para probar api/.user.ini.
+# Apache + PHP-FPM con display_errors activado, parecido a un hosting con cPanel.
 # Solo lo usa scripts/probar-paquete.mjs.
 FROM php:8.1-fpm
 COPY umam.ini /usr/local/etc/php/conf.d/umam.ini

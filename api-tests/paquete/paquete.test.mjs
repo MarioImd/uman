@@ -81,17 +81,14 @@ describe('hosting con display_errors activado', () => {
     assert.match(respuesta.texto, /display_errors está activado/);
   });
 
-  test('con PHP-FPM, .user.ini mantiene el 413 como JSON válido', async () => {
-    const url = base(8087);
-    const claves = await instalarEn(url);
-    assert.ok(claves.paramedico, 'la instalación funciona en FPM');
-    const { cookie } = await entrarEn(url, 'paramedico', claves.paramedico);
-    const registro = nuevoRegistro({ observaciones: { foto: 'A'.repeat(17 * 1024 * 1024) } });
-    const r = await peticion(`registros/${registro.id}`, { base: url, metodo: 'POST', cuerpo: registro, cookie });
-    assert.equal(r.estado, 413);
-    assert.match(r.headers.get('content-type'), /application\/json/);
-    assert.ok(r.json?.error, `cuerpo: ${r.texto.slice(0, 200)}`);
-    assert.equal(sql('SELECT COUNT(*) FROM registros'), '0');
+  test('la app recibe el límite para no enviar lo que dañaría la respuesta', async () => {
+    for (const puerto of [8083, 8087]) {
+      const url = base(puerto);
+      limpiarBase();
+      const claves = await instalarEn(url);
+      const r = await entrarEn(url, 'paramedico', claves.paramedico);
+      assert.equal(r.json.limiteBytes, 16 * 1024 * 1024, `puerto ${puerto}`);
+    }
   });
 
   test('con PHP-FPM un guardado normal funciona', async () => {
@@ -102,6 +99,24 @@ describe('hosting con display_errors activado', () => {
     const r = await peticion(`registros/${registro.id}`, { base: url, metodo: 'POST', cuerpo: registro, cookie });
     assert.equal(r.estado, 200);
   });
+});
+
+describe('hosting con display_errors apagado', () => {
+  beforeEach(() => limpiarBase());
+
+  for (const [nombre, puerto] of [['módulo de Apache', 8081], ['PHP-FPM', 8088]]) {
+    test(`con ${nombre} el 413 es JSON válido`, async () => {
+      const url = base(puerto);
+      const claves = await instalarEn(url);
+      const { cookie } = await entrarEn(url, 'paramedico', claves.paramedico);
+      const registro = nuevoRegistro({ observaciones: { foto: 'A'.repeat(17 * 1024 * 1024) } });
+      const r = await peticion(`registros/${registro.id}`, { base: url, metodo: 'POST', cuerpo: registro, cookie });
+      assert.equal(r.estado, 413);
+      assert.match(r.headers.get('content-type'), /application\/json/);
+      assert.ok(r.json?.error, `cuerpo: ${r.texto.slice(0, 200)}`);
+      assert.equal(sql('SELECT COUNT(*) FROM registros'), '0');
+    });
+  }
 });
 
 describe('hosting sin mbstring', () => {

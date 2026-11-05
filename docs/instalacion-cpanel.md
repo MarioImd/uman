@@ -34,10 +34,11 @@ Sin HTTPS no funcionan la cámara ni el inicio de sesión seguro.
 En **MultiPHP Manager** (o **Select PHP Version**), elige PHP 8.1 o superior para el dominio, y confirma
 que estén activas `pdo_mysql` y `mbstring`.
 
-En **MultiPHP INI Editor**, deja `display_errors` en **Off**. La app lo apaga por su cuenta con
-`api/.user.ini` y desde su código, pero PHP imprime algunos avisos antes de ejecutar la app. Con PHP
-como módulo de Apache, `.user.ini` se ignora, y solo este ajuste los evita. El instalador avisa si
-sigue activado.
+En **MultiPHP INI Editor**, deja `display_errors` en **Off**. Este paso importa: si un registro rebasa
+`post_max_size`, PHP imprime su aviso antes de ejecutar la app, y ni el código ni `api/.user.ini` pueden
+evitarlo. Con `display_errors` activado, esa respuesta sale como HTML y no como JSON. La app no envía
+registros que rebasen el límite, así que quien la usa no lo nota, pero el ajuste debe quedar apagado.
+El instalador avisa si sigue activado.
 
 ## 5. Subir los archivos
 

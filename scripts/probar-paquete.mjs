@@ -17,6 +17,7 @@ const SITIOS = [
   { nombre: 'umam-mala', puerto: 8085, ruta: '/var/www/html', config: 'config-mala.php' },
   { nombre: 'umam-forzado', puerto: 8086, ruta: '/var/www/html', config: 'config-forzado.php' },
   { nombre: 'umam-fpm', puerto: 8087, ruta: '/var/www/html', imagen: 'uman-fpm' },
+  { nombre: 'umam-fpm-off', puerto: 8088, ruta: '/var/www/html', imagen: 'uman-fpm', ini: 'display-off.ini' },
 ];
 
 // Archivos que no vienen en el paquete pero que un hosting podría tener.
