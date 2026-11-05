@@ -96,7 +96,7 @@ function entrar(): never
     $_SESSION['ultima_actividad'] = time();
     unset($usuario['password_hash'], $usuario['sesion_version']);
     $usuario['id'] = (int) $usuario['id'];
-    responder(200, $usuario);
+    responder(200, [...$usuario, 'limiteBytes' => limiteActual()]);
 }
 
 function registrarFallo(string $usuario): void
@@ -112,7 +112,7 @@ function rutasSesion(string $metodo, array $partes): never
 {
     $accion = $partes[1] ?? '';
     if ($metodo === 'GET' && $accion === '') {
-        responder(200, exigirSesion());
+        responder(200, [...exigirSesion(), 'limiteBytes' => limiteActual()]);
     }
     if ($metodo === 'POST' && $accion === 'login') {
         entrar();

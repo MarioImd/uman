@@ -1,6 +1,6 @@
 <?php
 // Punto de entrada de la API: el .htaccess manda aquí todas las peticiones.
-ini_set('display_errors', '0');
+ini_set('display_errors', '0'); // Antes de cargar nada: prepararEntorno() podría fallar.
 
 require __DIR__ . '/db.php';
 require __DIR__ . '/http.php';
@@ -10,6 +10,8 @@ require __DIR__ . '/registros.php';
 require __DIR__ . '/usuarios.php';
 
 try {
+    prepararEntorno();
+
     $base = dirname($_SERVER['SCRIPT_NAME']);
     $ruta = substr(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), strlen($base));
     $partes = explode('/', trim($ruta, '/'));

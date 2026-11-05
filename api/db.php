@@ -1,10 +1,28 @@
 <?php
 // Configuración y conexión a MySQL.
 
+/** Primero que corre: ningún error debe llegar al navegador. */
+function prepararEntorno(): void
+{
+    ini_set('display_errors', '0');
+    ini_set('display_startup_errors', '0');
+    ini_set('log_errors', '1');
+    error_reporting(E_ALL);
+    $archivo = (string) (config()['archivo_errores'] ?? '');
+    ini_set('error_log', $archivo !== '' ? $archivo : __DIR__ . '/errores.log');
+}
+
 function config(): array
 {
     static $config = null;
-    return $config ??= require(getenv('UMAM_CONFIG') ?: __DIR__ . '/config.php');
+    if ($config === null) {
+        $archivo = getenv('UMAM_CONFIG') ?: __DIR__ . '/config.php';
+        if (!is_file($archivo)) {
+            throw new RuntimeException('Falta config.php');
+        }
+        $config = require $archivo;
+    }
+    return $config;
 }
 
 function db(): PDO

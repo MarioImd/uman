@@ -129,6 +129,20 @@ function excedeLimites(int $bytes, int $postMaximo, int $memoria): bool
     return $memoria > 0 && $bytes * 3 > $memoria;
 }
 
+/** El tamaño más grande que el servidor puede guardar y volver a leer. */
+function limiteRegistro(int $postMaximo, int $memoria, int $paquete): int
+{
+    $limites = array_filter([$postMaximo, intdiv($memoria, 3), $paquete], fn (int $limite) => $limite > 0);
+    return min($limites);
+}
+
+/** Se le informa a la app para que avise antes de enviar; el servidor valida por su cuenta. */
+function limiteActual(): int
+{
+    $paquete = (int) db()->query('SELECT @@max_allowed_packet')->fetchColumn();
+    return limiteRegistro(bytesDeIni(ini_get('post_max_size')), bytesDeIni(ini_get('memory_limit')), $paquete);
+}
+
 function guardarRegistro(string $id): never
 {
     $usuario = exigirSesion();

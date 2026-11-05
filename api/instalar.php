@@ -1,6 +1,11 @@
 <?php
 // Instalador: crea las tablas y los dos usuarios iniciales. Se corre una sola
 // vez desde el navegador y después hay que borrar este archivo del servidor.
+// Se lee antes de apagarlo, para poder avisar. ini_set no alcanza para los avisos
+// que PHP emite antes de ejecutar nuestro código.
+$displayErroresActivo = filter_var(ini_get('display_errors'), FILTER_VALIDATE_BOOLEAN);
+ini_set('display_errors', '0');
+
 require __DIR__ . '/db.php';
 
 const MINIMO_BYTES = 32 * 1024 * 1024;
@@ -32,7 +37,15 @@ function resumenLimites(): string
         $aviso = !$sinLimite && $bytes < $minimo ? ' <strong>por debajo de ' . $minimo / 1024 / 1024 . ' MB</strong>' : '';
         $filas .= "<li>$nombre: $texto$aviso</li>";
     }
-    return "<h2>Límites del servidor</h2><ul>$filas</ul>";
+    return "<h2>Límites del servidor</h2><ul>$filas</ul>" . avisoDisplayErrores();
+}
+
+function avisoDisplayErrores(): string
+{
+    global $displayErroresActivo;
+    return $displayErroresActivo
+        ? '<p><strong>display_errors está activado.</strong> Apágalo en MultiPHP INI Editor: los errores de PHP no deben verse en el navegador.</p>'
+        : '';
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -47,7 +60,7 @@ if ($token === '' || !hash_equals($token, (string) ($_POST['token'] ?? ''))) {
 $pdo = db();
 $hayTabla = $pdo->query("SHOW TABLES LIKE 'usuarios'")->fetchColumn() !== false;
 if ($hayTabla && $pdo->query("SELECT COUNT(*) FROM usuarios WHERE rol = 'admin'")->fetchColumn() > 0) {
-    pagina(409, '<p>UMAM ya está instalado. Borra este archivo del servidor.</p>');
+    pagina(409, '<p>UMAM ya está instalado. Borra este archivo del servidor.</p>' . avisoDisplayErrores());
 }
 
 foreach (array_filter(array_map('trim', explode(';', file_get_contents(__DIR__ . '/schema.sql')))) as $sentencia) {

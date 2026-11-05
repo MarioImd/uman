@@ -737,8 +737,7 @@ describe('FormularioComponent — versiones y errores del servidor', () => {
       iniciar();
       const tamano = medir();
       sesion.usuario.set({ limiteBytes: tamano + 1000 });
-      const base64 = 'data:image/jpeg;base64,' + 'A'.repeat(2000);
-      fixture.componentInstance.cargarRegistro({ ...crearRegistroVacio(), id: fixture.componentInstance.idActual, observaciones: { foto: base64 } });
+      folio().setValue('data:image/jpeg;base64,' + 'A'.repeat(2000));
       fixture.componentInstance.guardarBorrador();
       tick();
       expect(servicioFalso.guardar).not.toHaveBeenCalled();

@@ -7,6 +7,8 @@ export interface UsuarioSesion {
   usuario: string;
   nombre: string;
   rol: 'admin' | 'usuario';
+  /** Tamaño máximo de un registro, según los límites del servidor. */
+  limiteBytes?: number;
 }
 
 const API_SESION_URL = 'api/sesion';

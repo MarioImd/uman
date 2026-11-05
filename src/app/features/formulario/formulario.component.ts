@@ -17,6 +17,8 @@ import { SesionService } from '../../core/services/sesion.service';
 /** Cuánto se espera el último registro antes de abrir uno en blanco. */
 const ESPERA_ULTIMO_MS = 8000;
 const ESPERA_REINTENTO_MS = 10000;
+/** Se avisa antes de llegar al límite real del servidor. */
+const MARGEN_LIMITE = 0.95;
 const AVISO_DESCARTAR = 'Hay cambios que no se pudieron guardar y se perderán. ¿Continuar?';
 
 /**
@@ -429,8 +431,13 @@ export class FormularioComponent implements OnInit, OnDestroy {
 
   private async enviar(envio: Envio): Promise<boolean> {
     const { registro, edicion } = envio;
+    const cuerpo = { ...registro, version: edicion.version, edicionId: edicion.edicionId };
+    if (this.rebasaLimite(cuerpo)) {
+      this.atenderErrorDeGuardado(new HttpErrorResponse({ status: 413 }), envio);
+      return false;
+    }
     try {
-      const { version } = await this.registroService.guardar({ ...registro, version: edicion.version, edicionId: edicion.edicionId });
+      const { version } = await this.registroService.guardar(cuerpo);
       edicion.version = version;
       if (edicion === this.edicion) {
         this.estadoGuardado = `Guardado ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
@@ -441,6 +448,17 @@ export class FormularioComponent implements OnInit, OnDestroy {
       this.atenderErrorDeGuardado(error, envio);
       return false;
     }
+  }
+
+  /**
+   * Mide lo que realmente viajaría: el JSON ya serializado en bytes, con las
+   * imágenes en base64. Solo sirve para avisar sin gastar datos; quien decide
+   * es el servidor. También evita el aviso que PHP imprime antes de nuestro
+   * código cuando se rebasa post_max_size, que dañaría la respuesta.
+   */
+  private rebasaLimite(cuerpo: RegistroAtencionPrehospitalaria): boolean {
+    const limite = this.sesion.usuario()?.limiteBytes;
+    return !!limite && new Blob([JSON.stringify(cuerpo)]).size > limite * MARGEN_LIMITE;
   }
 
   private atenderErrorDeGuardado(error: unknown, envio: Envio): void {
