@@ -21,6 +21,7 @@ try {
     $ruta = substr(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), strlen($base));
     $partes = explode('/', trim($ruta, '/'));
     $metodo = $_SERVER['REQUEST_METHOD'];
+    exigirJson($metodo);
 
     match ($partes[0]) {
         'sesion' => rutasSesion($metodo, $partes),
