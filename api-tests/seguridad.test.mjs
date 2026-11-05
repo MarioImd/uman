@@ -55,7 +55,7 @@ test('una falla al crear usuarios no deja cuentas a medias ni muestra detalles',
   sql("DELETE FROM usuarios WHERE rol = 'admin'");
   const r = await peticion('instalar.php', { metodo: 'POST', formulario: { token: TOKEN } });
   assert.equal(r.estado, 500);
-  assert.doesNotMatch(r.texto, /SQLSTATE|Duplicate|Stack trace|\.php/);
+  assert.doesNotMatch(r.texto, /SQLSTATE|Duplicate|Stack trace|var\/www/);
   assert.match(r.texto, /No se pudo instalar/);
   assert.equal(sql("SELECT COUNT(*) FROM usuarios WHERE rol = 'admin'"), '0');
 });

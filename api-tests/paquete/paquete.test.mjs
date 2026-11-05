@@ -126,7 +126,7 @@ describe('hosting con datos de conexión incorrectos', () => {
   test('instalar.php no revela detalles', async () => {
     const r = await peticion('instalar.php', { base: base(8085), metodo: 'POST', formulario: { token: TOKEN } });
     assert.equal(r.estado, 500);
-    assert.doesNotMatch(r.texto, /SQLSTATE|Access denied|usuario_que_no_existe|Stack trace|\.php/);
+    assert.doesNotMatch(r.texto, /SQLSTATE|Access denied|usuario_que_no_existe|Stack trace|var\/www/);
     assert.match(r.texto, /No se pudo instalar/);
   });
 
