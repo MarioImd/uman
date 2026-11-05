@@ -1,10 +1,23 @@
 # Toda petición entra por index.php, así los archivos internos no se pueden leer.
 # instalar.php es la única excepción y se borra al terminar la instalación.
+# No usar php_flag ni php_value aquí: con PHP-FPM dan error 500. Para ajustes de
+# PHP está .user.ini.
+
+<IfModule mod_authz_core.c>
+  <FilesMatch "^\.|\.(sql|md|log)$|^config(\.example)?\.php$|^sess_">
+    Require all denied
+  </FilesMatch>
+</IfModule>
+
 RewriteEngine On
 
-# Este archivo reemplaza las reglas de la carpeta superior, por eso repite HTTPS.
+# Este archivo reemplaza las reglas de la carpeta superior, por eso las repite.
+RewriteRule (^|/)\. - [F,L]
+RewriteRule \.(sql|md|log)$ - [F,L]
+RewriteRule ^config(\.example)?\.php$ - [F,L]
+RewriteRule ^sesiones(/|$) - [F,L]
+
 RewriteCond %{HTTPS} off
-RewriteCond %{HTTP:X-Forwarded-Proto} !https
 RewriteCond %{HTTP_HOST} !^(localhost|php)(:|$) [NC]
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 

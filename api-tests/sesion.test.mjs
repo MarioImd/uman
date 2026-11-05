@@ -69,11 +69,14 @@ test('logout invalida la cookie', async () => {
   assert.equal((await peticion('sesion', { cookie })).estado, 401);
 });
 
-test('api/config.php y api/schema.sql no se pueden descargar', async () => {
-  for (const archivo of ['config.php', 'config.example.php', 'schema.sql', 'db.php', 'sesion.php']) {
+test('los archivos internos no se pueden descargar', async () => {
+  for (const archivo of ['config.php', 'config.example.php', 'schema.sql', '.htaccess', 'sesiones/sess_x']) {
     const r = await peticion(archivo);
-    assert.equal(r.estado, 404, archivo);
+    assert.equal(r.estado, 403, archivo);
     assert.doesNotMatch(r.texto, /CREATE TABLE|db_clave/);
+  }
+  for (const archivo of ['db.php', 'sesion.php']) {
+    assert.equal((await peticion(archivo)).estado, 404, archivo);
   }
 });
 
@@ -87,7 +90,7 @@ test('una ruta inexistente responde 404 en JSON', async () => {
   assert.ok(r.json.error);
 });
 
-test('un cuerpo que no es JSON responde 400', async () => {
-  const r = await peticion('sesion/login', { metodo: 'POST', formulario: { usuario: 'admin' } });
+test('un cuerpo que no es JSON válido responde 400', async () => {
+  const r = await peticion('sesion/login', { metodo: 'POST', crudo: 'esto no es json', tipo: 'application/json' });
   assert.equal(r.estado, 400);
 });

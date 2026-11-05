@@ -8,7 +8,8 @@ import { crearRegistroVacio } from '../../core/models/registro.model';
 import { SECCIONES } from '../../core/data/secciones.data';
 import { SesionService } from '../../core/services/sesion.service';
 
-const sesionFalsa = () => ({ sesionVencida: signal(false) });
+const sesionFalsa = () => ({ sesionVencida: signal(false), usuario: signal<{ limiteBytes?: number } | null>(null) });
+const tamanoEnviado = (registro: unknown) => new Blob([JSON.stringify(registro)]).size;
 
 describe('FormularioComponent', () => {
   let fixture: ComponentFixture<FormularioComponent>;
@@ -680,6 +681,99 @@ describe('FormularioComponent — versiones y errores del servidor', () => {
     fixture.componentInstance.avisarAntesDeCerrar(sucio);
     expect(sucio.defaultPrevented).toBeTrue();
     tick(1500);
+  }));
+
+  describe('límite de tamaño', () => {
+    /** Mide lo que realmente se envía con el formulario tal como está. */
+    function medir(): number {
+      fixture.componentInstance.guardarBorrador();
+      tick();
+      const tamano = tamanoEnviado(servicioFalso.guardar.calls.mostRecent().args[0]);
+      servicioFalso.guardar.calls.reset();
+      return tamano;
+    }
+
+    it('no envía un registro que rebasa el límite y avisa', fakeAsync(() => {
+      iniciar();
+      const tamano = medir();
+      sesion.usuario.set({ limiteBytes: tamano - 1 });
+      fixture.componentInstance.guardarBorrador();
+      tick();
+      fixture.detectChanges();
+      expect(servicioFalso.guardar).not.toHaveBeenCalled();
+      expect(texto()).toContain('demasiado grande');
+    }));
+
+    it('deja un margen: tampoco envía si queda justo debajo del límite', fakeAsync(() => {
+      iniciar();
+      const tamano = medir();
+      sesion.usuario.set({ limiteBytes: Math.ceil(tamano * 1.02) });
+      fixture.componentInstance.guardarBorrador();
+      tick();
+      expect(servicioFalso.guardar).not.toHaveBeenCalled();
+    }));
+
+    it('envía si queda por debajo del margen', fakeAsync(() => {
+      iniciar();
+      const tamano = medir();
+      sesion.usuario.set({ limiteBytes: Math.ceil(tamano * 1.2) });
+      fixture.componentInstance.guardarBorrador();
+      tick();
+      expect(servicioFalso.guardar).toHaveBeenCalled();
+    }));
+
+    it('mide bytes del JSON serializado, no caracteres', fakeAsync(() => {
+      iniciar();
+      folio().setValue('a'.repeat(1000));
+      const tamano = medir();
+      sesion.usuario.set({ limiteBytes: Math.ceil((tamano + 500) / 0.95) });
+      folio().setValue('ñ'.repeat(1000)); // Mismos caracteres, 1000 bytes más: rebasa.
+      fixture.componentInstance.guardarBorrador();
+      tick();
+      expect(servicioFalso.guardar).not.toHaveBeenCalled();
+    }));
+
+    it('cuenta las imágenes en base64 tal como viajan', fakeAsync(() => {
+      iniciar();
+      const tamano = medir();
+      sesion.usuario.set({ limiteBytes: tamano + 1000 });
+      const base64 = 'data:image/jpeg;base64,' + 'A'.repeat(2000);
+      fixture.componentInstance.cargarRegistro({ ...crearRegistroVacio(), id: fixture.componentInstance.idActual, observaciones: { foto: base64 } });
+      fixture.componentInstance.guardarBorrador();
+      tick();
+      expect(servicioFalso.guardar).not.toHaveBeenCalled();
+    }));
+
+    it('al quitar lo que sobra vuelve a guardar', fakeAsync(() => {
+      iniciar();
+      const tamano = medir();
+      sesion.usuario.set({ limiteBytes: Math.ceil((tamano + 100) / 0.95) });
+      folio().setValue('x'.repeat(500));
+      fixture.componentInstance.guardarBorrador();
+      tick();
+      expect(servicioFalso.guardar).not.toHaveBeenCalled();
+      folio().setValue('');
+      fixture.componentInstance.guardarBorrador();
+      tick();
+      expect(servicioFalso.guardar).toHaveBeenCalled();
+      tick(1500);
+    }));
+
+    it('sin límite informado envía normalmente', fakeAsync(() => {
+      iniciar();
+      fixture.componentInstance.guardarBorrador();
+      tick();
+      expect(servicioFalso.guardar).toHaveBeenCalled();
+    }));
+  });
+
+  it('si falla el Excel muestra un mensaje', fakeAsync(() => {
+    iniciar();
+    spyOn(fixture.componentInstance['excelExportador'], 'exportar').and.rejectWith(new Error('no cargó'));
+    fixture.nativeElement.querySelector('button.exportar-excel').click();
+    tick();
+    fixture.detectChanges();
+    expect(texto()).toContain('No se pudo generar el Excel');
   }));
 
   it('con 413 muestra que el registro es demasiado grande', fakeAsync(() => {

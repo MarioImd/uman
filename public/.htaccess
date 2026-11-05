@@ -1,11 +1,29 @@
 # Configuración de Apache para el frontend de UMAM en cPanel.
+# No usar php_flag ni php_value aquí: con PHP-FPM dan error 500.
 
-# Forzar HTTPS: la cámara y la cookie de sesión lo requieren.
+# Archivos que nunca deben servirse. Funciona igual en raíz y en subcarpeta,
+# porque compara solo el nombre del archivo.
+<IfModule mod_authz_core.c>
+  <FilesMatch "^\.|\.(sql|md|log)$|^config(\.example)?\.php$|^sess_">
+    Require all denied
+  </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
   RewriteEngine On
+
+  # Lo mismo por ruta, incluidas carpetas ocultas como .git. .well-known queda
+  # libre porque AutoSSL lo necesita para validar el dominio y renovar el certificado.
+  RewriteRule (^|/)\.(?!well-known(/|$)) - [F,L]
+  RewriteRule \.(sql|md|log)$ - [F,L]
+
+  # Forzar HTTPS: la cámara y la cookie de sesión lo requieren. Por .well-known
+  # no se redirige: la validación debe funcionar aunque aún no haya certificado.
+  # Si el sitio está detrás de un proxy que termina el SSL (por ejemplo Cloudflare
+  # en modo Flexible), esta regla causa un bucle. Ver docs/instalacion-cpanel.md.
   RewriteCond %{HTTPS} off
-  RewriteCond %{HTTP:X-Forwarded-Proto} !https
   RewriteCond %{HTTP_HOST} !^localhost [NC]
+  RewriteCond %{REQUEST_URI} !/\.well-known/
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 </IfModule>
 

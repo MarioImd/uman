@@ -213,6 +213,18 @@ describe('HistorialComponent', () => {
     expect(excelExportadorFalso.exportar).toHaveBeenCalledWith(registro);
   }));
 
+  it('si falla el Excel muestra un mensaje', fakeAsync(() => {
+    const fila = resumen();
+    servicioFalso.listar.and.resolveTo(pagina([fila]));
+    servicioFalso.obtener.and.resolveTo(completo({ id: fila.id }));
+    excelExportadorFalso.exportar.and.rejectWith(new Error('no cargó'));
+    iniciar();
+    boton('button.exportar-excel').click();
+    tick();
+    fixture.detectChanges();
+    expect(texto()).toContain('No se pudo generar el Excel');
+  }));
+
   it('Eliminar pide confirmación, borra y recarga la página', fakeAsync(() => {
     const fila = resumen({ folio: 'F-7' });
     servicioFalso.listar.and.resolveTo(pagina([fila]));
