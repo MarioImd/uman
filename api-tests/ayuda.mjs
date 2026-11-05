@@ -54,3 +54,22 @@ export async function entrar(usuario, clave) {
   const r = await peticion('sesion/login', { metodo: 'POST', cuerpo: { usuario, clave } });
   return r.cookie;
 }
+
+/** Registro mínimo válido, como el que manda el frontend. */
+export function nuevoRegistro(cambios = {}) {
+  return {
+    id: crypto.randomUUID(),
+    fechaCreacion: new Date().toISOString(),
+    estado: '',
+    ciudad: '',
+    folio: '',
+    version: 0,
+    datosPaciente: {},
+    signosVitales: [],
+    ...cambios,
+  };
+}
+
+export function guardar(registro, cookie) {
+  return peticion(`registros/${registro.id}`, { metodo: 'POST', cuerpo: registro, cookie });
+}
