@@ -80,6 +80,9 @@ interface Envio {
     <div class="aviso-choque" *ngIf="estadoGuardado === 'Error al guardar' && !choque" role="alert">
       <p>No se pudo guardar. Se reintentará solo; no cierres esta pantalla.</p>
     </div>
+    <div class="aviso-choque" *ngIf="errorExcel" role="alert">
+      <p>No se pudo generar el Excel. Recarga la página e inténtalo de nuevo.</p>
+    </div>
     <div class="aviso-choque" *ngIf="estadoGuardado === ESTADO_MUY_GRANDE" role="alert">
       <p>El registro es demasiado grande para el servidor. Quita o reduce algunas imágenes.</p>
     </div>
@@ -204,6 +207,7 @@ export class FormularioComponent implements OnInit, OnDestroy {
 
   /** Aún no se sabe qué registro mostrar; capturar ahora se perdería al cargarlo. */
   cargando = true;
+  errorExcel = false;
   /** El servidor rechazó guardar porque el registro cambió o se eliminó. Detiene el autosave. */
   choque: '' | 'conflicto' | 'eliminado' = '';
 
@@ -531,9 +535,14 @@ export class FormularioComponent implements OnInit, OnDestroy {
     this.enviarAlHistorial.emit();
   }
 
-  exportarExcel(): void {
-    const registro = this.construirRegistroDesdeFormulario();
-    this.excelExportador.exportar(registro);
+  async exportarExcel(): Promise<void> {
+    this.errorExcel = false;
+    try {
+      await this.excelExportador.exportar(this.construirRegistroDesdeFormulario());
+    } catch (error) {
+      console.error('No se pudo generar el Excel.', error);
+      this.errorExcel = true;
+    }
   }
 
   /**

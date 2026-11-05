@@ -252,7 +252,13 @@ export class HistorialComponent implements OnInit, OnDestroy {
 
   async exportarExcel(resumen: RegistroResumen): Promise<void> {
     const registro = await this.registroCompleto(resumen);
-    if (registro) this.excelExportador.exportar(registro);
+    if (!registro) return;
+    try {
+      await this.excelExportador.exportar(registro);
+    } catch (error) {
+      console.error('No se pudo generar el Excel.', error);
+      this.mensajeError = 'No se pudo generar el Excel. Recarga la página e inténtalo de nuevo.';
+    }
   }
 
   async eliminar(registro: RegistroResumen): Promise<void> {
