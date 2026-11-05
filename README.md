@@ -34,6 +34,7 @@ para crear las tablas y los usuarios `admin` y `paramedico`.
 ```powershell
 npx ng test --watch=false --browsers=ChromeHeadless   # Frontend
 npm run test:api                                      # API (Docker debe estar corriendo)
+npm run build:cpanel; npm run test:paquete            # Paquete en Apache real: raíz, subcarpeta, HTTPS y FPM
 ```
 
 Las pruebas de API borran la base de datos local.

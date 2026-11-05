@@ -44,4 +44,6 @@ Thumbs.db
 
 # API PHP
 /api/config.php
+/api/sesiones/
+/api/errores.log
 /deploy
