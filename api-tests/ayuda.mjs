@@ -24,7 +24,9 @@ export async function peticion(ruta, { metodo = 'GET', cuerpo, cookie, formulari
     texto,
     json,
     headers: respuesta.headers,
-    cookie: respuesta.headers.getSetCookie().map(c => c.split(';')[0]).join('; '),
+    // Como un navegador: si la misma cookie llega dos veces, gana la última.
+    cookie: [...new Map(respuesta.headers.getSetCookie().map(c => c.split(';')[0].split('='))).entries()]
+      .map(([nombre, valor]) => `${nombre}=${valor}`).join('; '),
     setCookie: respuesta.headers.getSetCookie().join('\n'),
   };
 }

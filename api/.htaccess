@@ -1,0 +1,5 @@
+# Toda petición entra por index.php, así los archivos internos no se pueden leer.
+# instalar.php es la única excepción y se borra al terminar la instalación.
+RewriteEngine On
+RewriteRule ^(index|instalar)\.php$ - [L]
+RewriteRule ^ index.php [L,QSA]
