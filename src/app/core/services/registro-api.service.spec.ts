@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { API_REGISTROS_URL, ApiRegistroService } from './registro-api.service';
@@ -31,6 +31,15 @@ describe('ApiRegistroService', () => {
     req.flush({ version: 1 });
     expect(await promesa).toEqual({ version: 1 });
   });
+
+  it('guardar() no se queda colgado para siempre', fakeAsync(() => {
+    let fallo = false;
+    const registro = crearRegistroVacio();
+    servicio.guardar(registro).catch(() => (fallo = true));
+    http.expectOne(`${API_REGISTROS_URL}/${registro.id}`);
+    tick(120000);
+    expect(fallo).toBeTrue();
+  }));
 
   it('obtener() devuelve undefined si el servidor responde 404', async () => {
     const promesa = servicio.obtener('no-existe');

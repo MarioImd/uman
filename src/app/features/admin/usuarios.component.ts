@@ -44,6 +44,8 @@ const USUARIO_VACIO: NuevoUsuario = { usuario: '', nombre: '', clave: '', rol: '
               <td>{{ usuario.rol === 'admin' ? 'Administrador' : 'Usuario' }}</td>
               <td [class.inactivo]="!usuario.activo">{{ usuario.activo ? 'Activo' : 'Inactivo' }}</td>
               <td class="acciones">
+                <button type="button" class="editar-nombre" mat-stroked-button (click)="editarNombre(usuario)">Editar nombre</button>
+                <button type="button" class="alternar-rol" mat-stroked-button (click)="alternarRol(usuario)">{{ usuario.rol === 'admin' ? 'Hacer usuario' : 'Hacer administrador' }}</button>
                 <button type="button" class="cambiar-clave" mat-stroked-button (click)="cambiarClave(usuario)">Cambiar contraseña</button>
                 <button type="button" class="alternar-activo" mat-stroked-button (click)="alternarActivo(usuario)">{{ usuario.activo ? 'Desactivar' : 'Activar' }}</button>
               </td>
@@ -111,6 +113,22 @@ export class UsuariosComponent implements OnInit {
     return this.ejecutar(async () => {
       await this.admin.editarUsuario(usuario.id, { activo: !usuario.activo });
       return usuario.activo ? 'Usuario desactivado.' : 'Usuario activado.';
+    });
+  }
+
+  editarNombre(usuario: UsuarioAdmin): Promise<void> {
+    const nombre = prompt(`Nombre de ${usuario.usuario}:`, usuario.nombre);
+    if (nombre === null) return Promise.resolve();
+    return this.ejecutar(async () => {
+      await this.admin.editarUsuario(usuario.id, { nombre });
+      return 'Nombre actualizado.';
+    });
+  }
+
+  alternarRol(usuario: UsuarioAdmin): Promise<void> {
+    return this.ejecutar(async () => {
+      await this.admin.editarUsuario(usuario.id, { rol: usuario.rol === 'admin' ? 'usuario' : 'admin' });
+      return 'Rol actualizado.';
     });
   }
 

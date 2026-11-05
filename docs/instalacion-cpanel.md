@@ -94,6 +94,10 @@ Un registro con fotos viaja completo en cada autoguardado. Para que quepa hacen 
 | `post_max_size` | 32 MB | MultiPHP INI Editor |
 | `memory_limit` | 128 MB | MultiPHP INI Editor |
 | `max_allowed_packet` | 32 MB | Lo controla el hosting; pídelo a soporte si es bajo |
+| `max_input_time` y `max_execution_time` | 120 s | MultiPHP INI Editor |
+
+La API también rechaza un registro que ocupe más de un tercio de `memory_limit`, porque después no
+se podría volver a abrir.
 
 Si un registro rebasa el límite, la app muestra "El registro es demasiado grande" y no guarda esos
 cambios. En ese caso hay que quitar imágenes o subir el límite.

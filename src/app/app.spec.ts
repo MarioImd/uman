@@ -1,4 +1,4 @@
-import { signal } from '@angular/core';
+import { DebugElement, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideNativeDateAdapter } from '@angular/material/core';
@@ -66,29 +66,81 @@ describe('App', () => {
     botonHistorial.click();
     fixture.detectChanges();
     expect(compiled.querySelector('app-historial')).toBeTruthy();
-    expect(compiled.querySelector('app-formulario')).toBeFalsy();
+    expect(compiled.querySelector<HTMLElement>('app-formulario')?.hidden).toBeTrue();
 
     const botonFormulario = compiled.querySelectorAll<HTMLButtonElement>('button.pestana')[0];
     botonFormulario.click();
     fixture.detectChanges();
-    expect(compiled.querySelector('app-formulario')).toBeTruthy();
+    expect(compiled.querySelector<HTMLElement>('app-formulario')?.hidden).toBeFalse();
     expect(compiled.querySelector('app-historial')).toBeFalsy();
   });
 
-  it('al "abrir" un trámite desde el Historial, vuelve a la vista de Formulario con ese registro', () => {
+  it('cambiar de pestaña no destruye el formulario', () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
+    const antes = fixture.debugElement.query(By.directive(FormularioComponent)).componentInstance;
+    fixture.componentInstance.irAHistorial();
+    fixture.detectChanges();
+    fixture.componentInstance.irAFormulario();
+    fixture.detectChanges();
+    expect(fixture.debugElement.query(By.directive(FormularioComponent)).componentInstance).toBe(antes);
+  });
+
+  async function formularioListo(fixture: { detectChanges(): void; whenStable(): Promise<unknown>; debugElement: DebugElement }) {
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return fixture.debugElement.query(By.directive(FormularioComponent)).componentInstance as FormularioComponent;
+  }
+
+  it('al "abrir" un trámite desde el Historial, vuelve a la vista de Formulario con ese registro', async () => {
+    const fixture = TestBed.createComponent(App);
+    const formulario = await formularioListo(fixture);
     fixture.componentInstance.irAHistorial();
     fixture.detectChanges();
 
     const registro = { ...crearRegistroVacio(), folio: 'F-HIST' };
     const historial = fixture.debugElement.query(By.directive(HistorialComponent)).componentInstance as HistorialComponent;
     historial.abrir.emit(registro);
+    await fixture.whenStable();
     fixture.detectChanges();
 
     expect(fixture.componentInstance.vista).toBe('formulario');
-    expect(fixture.componentInstance.registroACargar).toBe(registro);
-    expect((fixture.nativeElement as HTMLElement).querySelector('app-formulario')).toBeTruthy();
+    expect(formulario.idActual).toBe(registro.id);
+  });
+
+  it('Abrir, Nuevo, Historial y volver a Formulario sigue en el registro nuevo', async () => {
+    const fixture = TestBed.createComponent(App);
+    const formulario = await formularioListo(fixture);
+    await fixture.componentInstance.abrirDesdeHistorial({ ...crearRegistroVacio(), folio: 'DE-OTRO' });
+    await formulario.nuevoRegistro();
+    const nuevo = formulario.idActual;
+    fixture.componentInstance.irAHistorial();
+    fixture.detectChanges();
+    fixture.componentInstance.irAFormulario();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    expect(formulario.idActual).toBe(nuevo);
+  });
+
+  it('si la persona cancela porque hay cambios sin guardar, no abre el otro registro', async () => {
+    const fixture = TestBed.createComponent(App);
+    const formulario = await formularioListo(fixture);
+    const actual = formulario.idActual;
+    spyOn(formulario, 'prepararCambio').and.resolveTo(false);
+    fixture.componentInstance.irAHistorial();
+    await fixture.componentInstance.abrirDesdeHistorial(crearRegistroVacio());
+    expect(formulario.idActual).toBe(actual);
+    expect(fixture.componentInstance.vista).toBe('historial');
+  });
+
+  it('abrir el mismo registro que ya está en edición no lo reemplaza por una copia vieja', async () => {
+    const fixture = TestBed.createComponent(App);
+    const formulario = await formularioListo(fixture);
+    const cargar = spyOn(formulario, 'cargarRegistro');
+    await fixture.componentInstance.abrirDesdeHistorial({ ...crearRegistroVacio(), id: formulario.idActual });
+    expect(cargar).not.toHaveBeenCalled();
+    expect(fixture.componentInstance.vista).toBe('formulario');
   });
 
   it('al terminar "Enviar al Historial" en el formulario, cambia a la vista de Historial', () => {
@@ -172,15 +224,13 @@ describe('App', () => {
     expect(entrada?.readOnly).toBeTrue();
   });
 
-  it('salir vuelve al login y borra registroACargar', async () => {
+  it('salir vuelve al login', async () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
-    fixture.componentInstance.registroACargar = crearRegistroVacio();
     (fixture.nativeElement as HTMLElement).querySelector<HTMLButtonElement>('button.salir')!.click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(sesion.salir).toHaveBeenCalled();
-    expect(fixture.componentInstance.registroACargar).toBeUndefined();
     expect((fixture.nativeElement as HTMLElement).querySelector('app-login')).toBeTruthy();
     expect(fixture.componentInstance.vista).toBe('formulario');
   });
@@ -193,9 +243,21 @@ describe('App', () => {
     spyOn(formulario, 'guardarPendientes').and.callFake(async () => {
       expect(sesion.salir).not.toHaveBeenCalled();
       guardado = true;
+      return true;
     });
     await fixture.componentInstance.salir();
     expect(guardado).toBeTrue();
     expect(sesion.salir).toHaveBeenCalled();
+  });
+
+  it('salir con cambios que no se pudieron guardar pide confirmación', async () => {
+    const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    const formulario = fixture.debugElement.query(By.directive(FormularioComponent)).componentInstance as FormularioComponent;
+    spyOn(formulario, 'guardarPendientes').and.resolveTo(false);
+    spyOn(window, 'confirm').and.returnValue(false);
+    await fixture.componentInstance.salir();
+    expect(window.confirm).toHaveBeenCalled();
+    expect(sesion.salir).not.toHaveBeenCalled();
   });
 });

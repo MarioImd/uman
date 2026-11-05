@@ -26,6 +26,8 @@ describe('FormularioComponent', () => {
 
     fixture = TestBed.createComponent(FormularioComponent);
     fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
   });
 
   it('inicia en el paso 0 mostrando solo la primera sección', () => {
@@ -135,6 +137,7 @@ describe('FormularioComponent', () => {
     fixture.componentInstance.guardarBorrador();
     tick();
     expect(fixture.componentInstance.estadoGuardado).toBe('Error al guardar');
+    fixture.destroy();
   }));
 
   it('el botón "Nuevo registro" limpia el formulario y un guardado posterior persiste un id distinto al original', fakeAsync(() => {
@@ -143,6 +146,7 @@ describe('FormularioComponent', () => {
 
     const boton: HTMLButtonElement = fixture.nativeElement.querySelector('button.nuevo-registro');
     boton.click();
+    tick();
     fixture.detectChanges();
 
     expect(fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.value).toBe('');
@@ -201,54 +205,37 @@ describe('FormularioComponent con un registro existente', () => {
     expect(fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.value).toBe('FOLIO-EXISTENTE');
   }));
 
-  it('omite la recarga si el usuario ya editó el formulario mientras ultimo() estaba pendiente', fakeAsync(() => {
+  it('no muestra el formulario hasta saber qué registro cargar', fakeAsync(() => {
+    let responder!: (r: typeof registroGuardado) => void;
+    servicioFalso.ultimo.and.returnValue(new Promise(r => (responder = r)));
     fixture.detectChanges();
-    // Simula que el usuario empezó a escribir durante la espera asíncrona de ultimo(),
-    // antes de que la promesa se resuelva (todavía no hay tick()).
-    fixture.componentInstance.form.markAsDirty();
+    tick(100);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-seccion-paso')).toBeFalsy();
+    expect(fixture.nativeElement.textContent).toContain('Cargando');
+    responder(registroGuardado);
+    tick();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-seccion-paso')).toBeTruthy();
+  }));
+
+  it('si ultimo tarda demasiado abre en blanco e ignora la respuesta tardía', fakeAsync(() => {
+    let responder!: (r: typeof registroGuardado) => void;
+    servicioFalso.ultimo.and.returnValue(new Promise(r => (responder = r)));
+    fixture.detectChanges();
+    tick(8000);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('app-seccion-paso')).toBeTruthy();
+    responder(registroGuardado);
     tick();
     expect(fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.value).toBe('');
   }));
-});
 
-describe('FormularioComponent con registroInicial (abierto desde el Historial)', () => {
-  let fixture: ComponentFixture<FormularioComponent>;
-  let servicioFalso: jasmine.SpyObj<RegistroService>;
-  const registroDelHistorial = { ...crearRegistroVacio(), folio: 'FOLIO-HISTORIAL' };
-  const masReciente = { ...crearRegistroVacio(), folio: 'FOLIO-MAS-RECIENTE' };
-
-  beforeEach(async () => {
-    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'ultimo', 'listar', 'eliminar']);
-    // ultimo() sí tiene registro: si registroInicial no lo bloqueara, este se
-    // cargaría por encima del que se pidió abrir desde el Historial.
-    servicioFalso.ultimo.and.resolveTo(masReciente);
-    servicioFalso.obtener.and.resolveTo(registroDelHistorial);
-    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
-
-    await TestBed.configureTestingModule({
-      imports: [FormularioComponent],
-      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, { provide: SesionService, useValue: sesionFalsa() }, provideNativeDateAdapter()],
-    }).compileComponents();
-
-    fixture = TestBed.createComponent(FormularioComponent);
-    fixture.componentInstance.registroInicial = registroDelHistorial;
-  });
-
-  it('usa el registro pasado por @Input en vez de cargar el último propio', fakeAsync(() => {
+  it('muestra qué registro se está editando', fakeAsync(() => {
     fixture.detectChanges();
     tick();
-    expect(fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.value).toBe('FOLIO-HISTORIAL');
-    expect(servicioFalso.ultimo).not.toHaveBeenCalled();
-  }));
-
-  it('arranca en el paso 0 y con el autosave suscrito', fakeAsync(() => {
     fixture.detectChanges();
-    tick();
-    expect(fixture.componentInstance.pasoActual).toBe(0);
-
-    fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.setValue('EDITADO');
-    tick(1500);
-    expect(servicioFalso.guardar).toHaveBeenCalled();
+    expect(fixture.nativeElement.querySelector('.registro-en-edicion').textContent).toContain('FOLIO-EXISTENTE');
   }));
 });
 
@@ -451,6 +438,7 @@ describe('FormularioComponent — versiones y errores del servidor', () => {
 
     const id = fixture.componentInstance['registroActual'].id;
     servicioFalso.obtener.and.resolveTo({ ...crearRegistroVacio(), id, folio: 'DEL-OTRO', version: 9 });
+    spyOn(window, 'confirm').and.returnValue(true);
     servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
     fixture.nativeElement.querySelector('button.recargar').click();
     tick();
@@ -483,7 +471,7 @@ describe('FormularioComponent — versiones y errores del servidor', () => {
     let rechazar!: () => void;
     servicioFalso.guardar.and.returnValue(new Promise((_, rej) => (rechazar = () => rej(error(409, 'conflicto')))));
     fixture.componentInstance.guardarBorrador();
-    fixture.componentInstance.nuevoRegistro();
+    fixture.componentInstance.cargarRegistro(crearRegistroVacio());
     rechazar();
     tick();
     fixture.detectChanges();
@@ -538,6 +526,162 @@ describe('FormularioComponent — versiones y errores del servidor', () => {
     tick(1500);
   }));
 
+  it('un guardado fallido se reintenta solo y avisa mientras tanto', fakeAsync(() => {
+    iniciar();
+    servicioFalso.guardar.and.rejectWith(error(0));
+    folio().setValue('SIN-SENAL');
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    fixture.detectChanges();
+    expect(texto()).toContain('No se pudo guardar');
+
+    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
+    tick(10000);
+    fixture.detectChanges();
+    expect(servicioFalso.guardar.calls.mostRecent().args[0].folio).toBe('SIN-SENAL');
+    expect(fixture.componentInstance.estadoGuardado).toContain('Guardado');
+    expect(texto()).not.toContain('No se pudo guardar');
+    tick(1500);
+  }));
+
+  it('Nuevo registro con un guardado fallido pide confirmación y cancelar conserva lo capturado', fakeAsync(() => {
+    iniciar();
+    servicioFalso.guardar.and.rejectWith(error(500));
+    folio().setValue('IMPORTANTE');
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    spyOn(window, 'confirm').and.returnValue(false);
+    fixture.componentInstance.nuevoRegistro();
+    tick();
+    expect(window.confirm).toHaveBeenCalled();
+    expect(folio().value).toBe('IMPORTANTE');
+    fixture.destroy();
+  }));
+
+  it('Nuevo registro con un guardado fallido descarta solo si la persona confirma', fakeAsync(() => {
+    iniciar();
+    servicioFalso.guardar.and.rejectWith(error(500));
+    folio().setValue('DESCARTABLE');
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    spyOn(window, 'confirm').and.returnValue(true);
+    fixture.componentInstance.nuevoRegistro();
+    tick();
+    expect(folio().value).toBe('');
+    servicioFalso.guardar.calls.reset();
+    tick(10000);
+    expect(servicioFalso.guardar).not.toHaveBeenCalled();
+  }));
+
+  it('Enviar al Historial no continúa si el guardado falla', fakeAsync(() => {
+    iniciar();
+    spyOn(window, 'print');
+    servicioFalso.guardar.and.rejectWith(error(0));
+    let emitido = false;
+    fixture.componentInstance.enviarAlHistorial.subscribe(() => (emitido = true));
+    fixture.componentInstance.enviarYVerHistorial();
+    tick();
+    expect(emitido).toBeFalse();
+    expect(window.print).not.toHaveBeenCalled();
+    fixture.destroy();
+  }));
+
+  it('Enviar al Historial marca el registro como finalizado y deja uno nuevo', fakeAsync(() => {
+    iniciar();
+    spyOn(window, 'print');
+    folio().setValue('TERMINADO');
+    const id = fixture.componentInstance.idActual;
+    fixture.componentInstance.enviarYVerHistorial();
+    tick();
+    const enviado = servicioFalso.guardar.calls.mostRecent().args[0];
+    expect(enviado.finalizado).toBeTrue();
+    expect(enviado.id).toBe(id);
+    expect(fixture.componentInstance.idActual).not.toBe(id);
+    expect(folio().value).toBe('');
+  }));
+
+  it('una foto nueva reemplaza a la que no ha salido', fakeAsync(() => {
+    iniciar();
+    const enviados: string[] = [];
+    let terminar!: () => void;
+    servicioFalso.guardar.and.callFake(r => {
+      enviados.push(r.folio);
+      return enviados.length === 1 ? new Promise(res => (terminar = () => res({ version: 1 }))) : Promise.resolve({ version: 2 });
+    });
+    for (const valor of ['V1', 'V2', 'V3']) {
+      folio().setValue(valor);
+      fixture.componentInstance.guardarBorrador();
+    }
+    terminar();
+    tick();
+    expect(enviados).toEqual(['V1', 'V3']);
+    tick(1500);
+  }));
+
+  it('cada guardado lleva el id de esta edición, distinto por registro', fakeAsync(() => {
+    iniciar();
+    fixture.componentInstance.guardarBorrador();
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    const [primero, segundo] = servicioFalso.guardar.calls.allArgs().map(([r]) => r.edicionId);
+    expect(primero).toBeTruthy();
+    expect(segundo).toBe(primero);
+    fixture.componentInstance.cargarRegistro(crearRegistroVacio());
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    expect(servicioFalso.guardar.calls.mostRecent().args[0].edicionId).not.toBe(primero);
+  }));
+
+  it('tras un conflicto, "Guardar como registro nuevo" conserva lo capturado con otro id', fakeAsync(() => {
+    iniciar();
+    const idOriginal = fixture.componentInstance.idActual;
+    servicioFalso.guardar.and.rejectWith(error(409, 'conflicto'));
+    folio().setValue('MIO');
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    fixture.detectChanges();
+
+    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
+    fixture.nativeElement.querySelector('button.guardar-como-nuevo').click();
+    tick();
+    fixture.detectChanges();
+    const enviado = servicioFalso.guardar.calls.mostRecent().args[0];
+    expect(enviado.id).not.toBe(idOriginal);
+    expect(enviado.version).toBe(0);
+    expect(enviado.folio).toBe('MIO');
+    expect(texto()).not.toContain('Otra persona modificó este registro');
+    servicioFalso.guardar.calls.reset();
+    folio().setValue('SIGO');
+    tick(1500);
+    expect(servicioFalso.guardar).toHaveBeenCalled();
+  }));
+
+  it('Recargar tras un conflicto no descarta sin confirmación', fakeAsync(() => {
+    iniciar();
+    servicioFalso.guardar.and.rejectWith(error(409, 'conflicto'));
+    folio().setValue('MIO');
+    fixture.componentInstance.guardarBorrador();
+    tick();
+    spyOn(window, 'confirm').and.returnValue(false);
+    fixture.componentInstance.recargar();
+    tick();
+    expect(servicioFalso.obtener).not.toHaveBeenCalled();
+    expect(folio().value).toBe('MIO');
+  }));
+
+  it('avisa antes de cerrar la pestaña si hay algo sin guardar', fakeAsync(() => {
+    iniciar();
+    const limpio = new Event('beforeunload', { cancelable: true });
+    fixture.componentInstance.avisarAntesDeCerrar(limpio);
+    expect(limpio.defaultPrevented).toBeFalse();
+
+    folio().setValue('PENDIENTE');
+    const sucio = new Event('beforeunload', { cancelable: true });
+    fixture.componentInstance.avisarAntesDeCerrar(sucio);
+    expect(sucio.defaultPrevented).toBeTrue();
+    tick(1500);
+  }));
+
   it('con 413 muestra que el registro es demasiado grande', fakeAsync(() => {
     iniciar();
     servicioFalso.guardar.and.rejectWith(error(413));
@@ -548,60 +692,3 @@ describe('FormularioComponent — versiones y errores del servidor', () => {
   }));
 });
 
-describe('FormularioComponent — al abrir desde el Historial falla la carga', () => {
-  let fixture: ComponentFixture<FormularioComponent>;
-  let servicioFalso: jasmine.SpyObj<RegistroService>;
-  const registro = { ...crearRegistroVacio(), folio: 'ABIERTO' };
-
-  beforeEach(async () => {
-    servicioFalso = jasmine.createSpyObj<RegistroService>('RegistroService', ['guardar', 'obtener', 'ultimo', 'listar', 'eliminar']);
-    servicioFalso.guardar.and.callFake(async r => ({ version: (r.version ?? 0) + 1 }));
-    await TestBed.configureTestingModule({
-      imports: [FormularioComponent],
-      providers: [{ provide: REGISTRO_SERVICE, useValue: servicioFalso }, { provide: SesionService, useValue: sesionFalsa() }, provideNativeDateAdapter()],
-    }).compileComponents();
-    fixture = TestBed.createComponent(FormularioComponent);
-    fixture.componentInstance.registroInicial = registro;
-  });
-
-  it('si falla obtener al abrir, no se autoguarda sobre ese registro', fakeAsync(() => {
-    servicioFalso.obtener.and.rejectWith(new Error('sin conexión'));
-    fixture.detectChanges();
-    tick();
-    fixture.detectChanges();
-
-    expect(fixture.nativeElement.textContent).toContain('No se pudo abrir el trámite');
-    expect(fixture.nativeElement.querySelector('app-seccion-paso')).toBeFalsy();
-    fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.setValue('X');
-    tick(1500);
-    expect(servicioFalso.guardar).not.toHaveBeenCalled();
-  }));
-
-  it('Reintentar abre el trámite si el servidor ya responde', fakeAsync(() => {
-    servicioFalso.obtener.and.rejectWith(new Error('sin conexión'));
-    fixture.detectChanges();
-    tick();
-    fixture.detectChanges();
-
-    servicioFalso.obtener.and.resolveTo(registro);
-    fixture.nativeElement.querySelector('button.reintentar').click();
-    tick();
-    fixture.detectChanges();
-    expect(fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.value).toBe('ABIERTO');
-    expect(fixture.nativeElement.querySelector('app-seccion-paso')).toBeTruthy();
-  }));
-
-  it('si el trámite ya no existe lo dice y permite empezar uno nuevo', fakeAsync(() => {
-    servicioFalso.obtener.and.resolveTo(undefined);
-    fixture.detectChanges();
-    tick();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain('Ese trámite ya no existe');
-
-    fixture.nativeElement.querySelector('button.empezar-nuevo').click();
-    tick();
-    fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('app-seccion-paso')).toBeTruthy();
-    expect(fixture.componentInstance.form.get('datosGenerales')!.get('folio')!.value).toBe('');
-  }));
-});

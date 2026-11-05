@@ -67,13 +67,13 @@ import { REGISTRO_SERVICE, RegistroService } from '../../core/services/registro.
               <td>{{ registro.paciente || '(sin nombre)' }}</td>
               <td>{{ registro.ciudad || '—' }}</td>
               <td class="acciones-fila">
-                <button type="button" class="abrir" mat-flat-button [disabled]="procesandoId === registro.id" (click)="abrirRegistro(registro)" title="Abrir para editar">
+                <button type="button" class="abrir" mat-flat-button [disabled]="!!procesandoId" (click)="abrirRegistro(registro)" title="Abrir para editar">
                   <mat-icon>edit</mat-icon> Abrir
                 </button>
-                <button type="button" class="exportar-pdf" mat-icon-button [disabled]="procesandoId === registro.id" (click)="exportarPdf(registro)" aria-label="Exportar PDF" title="Exportar PDF">
+                <button type="button" class="exportar-pdf" mat-icon-button [disabled]="!!procesandoId" (click)="exportarPdf(registro)" aria-label="Exportar PDF" title="Exportar PDF">
                   <mat-icon>picture_as_pdf</mat-icon>
                 </button>
-                <button type="button" class="exportar-excel" mat-icon-button [disabled]="procesandoId === registro.id" (click)="exportarExcel(registro)" aria-label="Exportar Excel" title="Exportar Excel">
+                <button type="button" class="exportar-excel" mat-icon-button [disabled]="!!procesandoId" (click)="exportarExcel(registro)" aria-label="Exportar Excel" title="Exportar Excel">
                   <mat-icon>grid_on</mat-icon>
                 </button>
                 <button type="button" class="eliminar" mat-icon-button (click)="eliminar(registro)" aria-label="Eliminar" title="Eliminar">

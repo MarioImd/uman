@@ -148,6 +148,16 @@ describe('HistorialComponent', () => {
     expect(emitido).toBe(registro);
   }));
 
+  it('mientras carga un trámite no deja abrir otro', fakeAsync(() => {
+    servicioFalso.listar.and.resolveTo(pagina([resumen(), resumen()]));
+    servicioFalso.obtener.and.returnValue(new Promise(() => {}));
+    iniciar();
+    const botones: HTMLButtonElement[] = Array.from(fixture.nativeElement.querySelectorAll('button.abrir'));
+    botones[0].click();
+    fixture.detectChanges();
+    expect(botones[1].disabled).toBeTrue();
+  }));
+
   it('si falla obtener muestra error y no emite abrir', fakeAsync(() => {
     servicioFalso.listar.and.resolveTo(pagina([resumen()]));
     servicioFalso.obtener.and.rejectWith(new Error('sin conexión'));

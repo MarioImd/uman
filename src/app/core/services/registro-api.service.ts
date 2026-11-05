@@ -1,6 +1,6 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, firstValueFrom } from 'rxjs';
+import { Observable, firstValueFrom, timeout } from 'rxjs';
 import { RegistroService } from './registro.service';
 import { Pagina, RegistroAtencionPrehospitalaria, RegistroResumen } from '../models/registro.model';
 
@@ -9,6 +9,9 @@ import { Pagina, RegistroAtencionPrehospitalaria, RegistroResumen } from '../mod
  * app funcione igual en la raíz de un dominio o en una subcarpeta.
  */
 export const API_REGISTROS_URL = 'api/registros';
+
+/** Con mala señal una petición puede quedarse colgada y detener los demás guardados. */
+const LIMITE_GUARDADO_MS = 120000;
 
 /**
  * Guarda y lee los registros en la API. HttpClient devuelve Observables;
@@ -21,7 +24,9 @@ export class ApiRegistroService implements RegistroService {
 
   /** Crea o actualiza el registro. Lo llama el autoguardado cada vez que cambia algo. */
   guardar(registro: RegistroAtencionPrehospitalaria): Promise<{ version: number }> {
-    return firstValueFrom(this.http.post<{ version: number }>(`${API_REGISTROS_URL}/${registro.id}`, registro));
+    return firstValueFrom(
+      this.http.post<{ version: number }>(`${API_REGISTROS_URL}/${registro.id}`, registro).pipe(timeout(LIMITE_GUARDADO_MS)),
+    );
   }
 
   /** Un registro completo, o undefined si no existe. */

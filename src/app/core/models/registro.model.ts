@@ -2,6 +2,10 @@ export interface RegistroAtencionPrehospitalaria {
   id: string;
   /** Versión del servidor; detecta si otra persona cambió el registro. 0 o ausente = nuevo. */
   version?: number;
+  /** Identifica la pantalla que está editando; ver api/registros.php. */
+  edicionId?: string;
+  /** Se marcó al "Enviar al Historial": ya no se retoma al abrir la app. */
+  finalizado?: boolean;
   fechaCreacion: string;
   estado: string;
   ciudad: string;

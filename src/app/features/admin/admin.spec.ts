@@ -150,6 +150,23 @@ describe('Pantallas de administración', () => {
       expect(texto()).toContain('Contraseña actualizada');
     }));
 
+    it('editar nombre llama a editarUsuario', fakeAsync(() => {
+      admin.editarUsuario.and.resolveTo(PARAMEDICO);
+      iniciar(fixture);
+      spyOn(window, 'prompt').and.returnValue('Nombre Nuevo');
+      fixture.nativeElement.querySelector('button.editar-nombre').click();
+      tick();
+      expect(admin.editarUsuario).toHaveBeenCalledOnceWith(2, { nombre: 'Nombre Nuevo' });
+    }));
+
+    it('cambiar rol llama a editarUsuario', fakeAsync(() => {
+      admin.editarUsuario.and.resolveTo(PARAMEDICO);
+      iniciar(fixture);
+      fixture.nativeElement.querySelector('button.alternar-rol').click();
+      tick();
+      expect(admin.editarUsuario).toHaveBeenCalledOnceWith(2, { rol: 'admin' });
+    }));
+
     it('cancelar el cambio de clave no llama a editarUsuario', fakeAsync(() => {
       iniciar(fixture);
       spyOn(window, 'prompt').and.returnValue(null);

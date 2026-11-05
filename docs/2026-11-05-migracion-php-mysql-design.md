@@ -189,6 +189,26 @@ envía el registro completo. Se detecta el choque en lugar de dejar que gane el 
 - Al recibir el 409, el formulario deja de autoguardar, avisa que otra persona modificó el registro y
   ofrece recargarlo. Lo capturado sigue en pantalla hasta que la persona decida.
 
+## 11b. Ajustes tras la revisión final
+
+Decisiones **[Claude]** tomadas al corregir la revisión de la rama:
+
+- El formulario se oculta al cambiar de pestaña en vez de destruirse, así conserva el registro en
+  edición y sus guardados pendientes.
+- Un guardado fallido se conserva y se reintenta cada 10 segundos. Nuevo, Abrir, Recargar y Salir
+  piden confirmación antes de descartarlo. "Enviar al Historial" no continúa si no se guardó.
+- La cola guarda un solo lugar por registro: una foto nueva reemplaza a la que no ha salido. Cada
+  guardado tiene un límite de 2 minutos.
+- Respuesta perdida: cada carga de un registro tiene un `edicion_id`. El servidor acepta una versión
+  vieja si esa misma pantalla fue la última en guardar. Guardado y actividad van en una transacción.
+- `api/registros/ultimo` solo trae registros **creados** por el usuario y sin finalizar. "Enviar al
+  Historial" marca `finalizado` y deja el formulario en blanco.
+- El formulario no se muestra hasta saber qué registro cargar, con un límite de 8 segundos. Después
+  abre en blanco e ignora la respuesta tardía.
+- Tras un choque también se puede "Guardar como registro nuevo".
+- Cambiar la contraseña cierra las sesiones abiertas de esa persona (`sesion_version`).
+- Se rechaza con 413 un registro que no cabría en memoria al volver a leerlo.
+
 ## 12. Instalación en cPanel
 
 La documentación debe cubrir: crear base y usuario MySQL, activar SSL, subir la carpeta, llenar
