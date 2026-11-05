@@ -1,6 +1,6 @@
 # Migración de UMAM a PHP + MySQL para cPanel
 
-Fecha: 2026-11-05. Estado: pendiente de aprobación final.
+Fecha: 2026-11-05. Estado: aprobado.
 
 Etiquetas: **[Mario]** lo decidió Mario. **[Claude]** es decisión técnica propuesta, se puede rechazar.
 
@@ -142,10 +142,12 @@ Todo requiere sesión válida salvo login. Respuestas JSON con `Cache-Control: n
 - `instalar.php` exige un token definido en `config.php` y se niega a correr si ya existe un
   administrador. Se indica borrarlo después. **[Claude]**
 - No se puede desactivar ni degradar al último administrador activo. **[Claude]**
+- La instalación crea dos usuarios: un administrador y uno normal. **[Mario]** Se llaman `admin` y
+  `paramedico`, con claves aleatorias mostradas una sola vez; nunca van en git. **[Claude]**
 
 ## 10. Frontend
 
-**Login.** Pantalla de usuario y contraseña. Al cargar, `GET api/sesion` decide si se muestra.
+**Login.** Pantalla de usuario y contraseña, con el logo de UMAM que ya usa la app. **[Mario]** Al cargar, `GET api/sesion` decide si se muestra.
 Sin registro público de cuentas.
 
 **Sesión vencida durante la captura.** Un interceptor detecta el 401 y muestra el login encima del
