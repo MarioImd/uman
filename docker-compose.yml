@@ -1,0 +1,26 @@
+# Entorno local para desarrollar y probar la API. No se sube a cPanel.
+# Levantar: docker compose up -d --build     Apagar: docker compose down
+services:
+  php:
+    build: docker/php
+    ports:
+      - "8080:80"
+    environment:
+      UMAM_CONFIG: /etc/umam/config.php
+    volumes:
+      - ./api:/var/www/html/api
+      - ./docker/php/config.php:/etc/umam/config.php:ro
+    depends_on:
+      - db
+  db:
+    image: mariadb:10.6
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: umam
+      MARIADB_USER: umam
+      MARIADB_PASSWORD: umam
+    volumes:
+      - umam_mysql:/var/lib/mysql
+
+volumes:
+  umam_mysql:
